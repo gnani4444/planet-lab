@@ -205,7 +205,7 @@ export function AssistantPanel() {
   const clearConversation = () => { requestRef.current?.abort(); requestRef.current = null; setBusy(false); setMessages([]); setFailedPrompt(null); };
   const statusText = availability === null ? 'Checking' : availability.available ? 'OpenAI ready' : 'Unavailable';
 
-  return <section className="assistant-panel" id="ask-panel" role="tabpanel" tabIndex={-1} aria-labelledby="tab-ask" aria-label="Ask about this experiment">
+  return <section className="assistant-panel" data-tour="assistant" id="ask-panel" role="tabpanel" tabIndex={-1} aria-labelledby="tab-ask" aria-label="Ask about this experiment">
     <div className="assistant-heading">
       <span className="assistant-mark"><Sparkles size={14} aria-hidden="true" /></span>
       <div><h2>Ask OpenAI</h2><p>Science help for this experiment</p></div>

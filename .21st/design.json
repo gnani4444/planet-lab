@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "project": {
+    "name": "planet-lab",
+    "productType": "scientific workbench",
+    "stack": [
+      "nextjs",
+      "react",
+      "tailwind-v4"
+    ]
+  },
+  "sources": {
+    "tokens": [
+      "src/app/globals.css"
+    ],
+    "components": [
+      "src/components/ui"
+    ],
+    "assets": [
+      "public/assets"
+    ],
+    "instructions": [
+      "DESIGN.md",
+      "AGENTS.md",
+      "CLAUDE.md"
+    ]
+  },
+  "design": {
+    "colorMode": "dark",
+    "colors": {
+      "--lab-muted": {
+        "value": "#999",
+        "source": "src/app/globals.css"
+      }
+    },
+    "typography": {},
+    "spacing": {},
+    "radius": {},
+    "shadows": {},
+    "motion": {},
+    "density": "compact"
+  },
+  "components": {
+    "installed": [],
+    "preferredPrimitives": [],
+    "patterns": [
+      "Native dialog elements for assistant, saves, settings and feature tour"
+    ]
+  },
+  "constraints": {
+    "must": [
+      "Keep the existing scene-first scientific workbench and dark tokens",
+      "Keep keyboard controls and mobile tabs usable"
+    ],
+    "avoid": [
+      "New dialog dependencies for the feature tour",
+      "Changing experiment state during onboarding"
+    ]
+  },
+  "decisions": [
+    "Feature tour reuses native dialog semantics, existing tokens and a restrained feature spotlight."
+  ],
+  "evidence": [
+    {
+      "fact": "components.installed",
+      "source": "src/components/ui"
+    },
+    {
+      "fact": "design.tokens",
+      "source": "src/app/globals.css"
+    },
+    {
+      "fact": "project.instructions",
+      "source": "AGENTS.md"
+    },
+    {
+      "fact": "project.instructions",
+      "source": "CLAUDE.md"
+    },
+    {
+      "fact": "project.instructions",
+      "source": "DESIGN.md"
+    },
+    {
+      "fact": "project.stack:nextjs",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:react",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:tailwind-v4",
+      "source": "package.json"
+    },
+    {
+      "fact": "design.colorMode:dark",
+      "source": "src/app/globals.css :root color-scheme and DESIGN.md"
+    }
+  ],
+  "generatedAt": "2026-11-01T17:42:54.788Z"
+}

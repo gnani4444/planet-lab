@@ -10,6 +10,10 @@ A physics workbench with an OpenAI science coach. Launch a rover on Mars, repeat
 
 ![Mars rover experiment with measured flight and OpenAI questions](docs/screenshots/workbench.jpg)
 
+New here? Follow the first-visit feature tour, or choose **Take a tour** to replay it. The tour points out controls without changing your experiment.
+
+![Guided feature tour highlighting Ask OpenAI](docs/screenshots/tour.jpg)
+
 ## Ask, experiment, understand
 
 OpenAI is part of the experiment loop:

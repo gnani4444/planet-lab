@@ -248,3 +248,40 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .assistant-command-preview dl {margin:6px 0}
 .assistant-command-preview dl div {display:flex;justify-content:space-between;gap:12px}
 .assistant-command-preview dd {margin:0;color:#eee}
+
+/* Feature tour shares the workbench's native dialog and control vocabulary. */
+.tour-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 11px; border: 1px solid var(--lab-boundary); border-radius: 6px; background: transparent; color: var(--lab-copy); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.tour-trigger:hover { background: var(--lab-raised); color: var(--lab-ink); }
+.mobile-tour-trigger { display: none; }
+.feature-tour { position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; overflow: hidden; background: transparent; color: var(--lab-ink); }
+.feature-tour::backdrop { background: transparent; }
+.tour-shade { position: fixed; inset: 0; background: #0009; pointer-events: none; }
+.tour-spotlight { position: fixed; border: 2px solid var(--lab-focus); border-radius: 8px; box-shadow: 0 0 0 100vmax #000a; pointer-events: none; }
+.tour-card { position: fixed; width: min(400px,calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 20px; border: 1px solid var(--lab-boundary); border-radius: 10px; background: var(--lab-surface); box-shadow: 0 16px 60px #0009; }
+.tour-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tour-heading > span { display: flex; align-items: center; gap: 7px; color: var(--lab-focus); font-size: 11px; letter-spacing: .08em; }
+.tour-heading > button { display: grid; place-items: center; width: 44px; height: 44px; margin: -10px -10px -6px 0; border: 0; border-radius: 5px; background: transparent; color: var(--lab-muted); cursor: pointer; }
+.tour-heading > button:hover { background: var(--lab-raised); color: var(--lab-ink); }
+.tour-progress { margin: 13px 0 5px; color: var(--lab-muted); font-size: 12px; }
+.tour-card h2 { margin: 0 0 12px; color: var(--lab-ink); font-size: 21px; line-height: 1.25; font-weight: 550; letter-spacing: -.02em; }
+.tour-card h2:focus { outline: none; }
+#tour-description { margin: 0; color: var(--lab-copy); font-size: 14px; line-height: 1.6; }
+.tour-tip { margin: 14px 0 20px; padding-left: 11px; border-left: 2px solid var(--lab-rule); color: var(--lab-muted); font-size: 12px; line-height: 1.6; }
+.tour-actions,.tour-actions > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tour-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 11px; border: 1px solid var(--lab-rule); border-radius: 5px; color: var(--lab-copy); background: transparent; font-size: 13px; cursor: pointer; }
+.tour-actions .tour-skip { padding: 0 3px; border-color: transparent; color: var(--lab-muted); }
+.tour-actions .tour-next { color: #07121a; background: #c8e7f8; border-color: #c8e7f8; font-weight: 550; }
+.tour-actions .tour-next:hover { background: #e4f4fd; }
+.tour-actions .tour-back:hover { background: var(--lab-raised); }
+@media (max-width: 767px) {
+  .header-actions > .tour-trigger { display: none; }
+  .mobile-tour-trigger { display: inline-flex; }
+  .tour-card { padding: 18px; }
+  .tour-card h2 { font-size: 20px; }
+  .tour-actions button { padding-inline: 9px; }
+}
+
+@media (min-width: 768px) and (max-width: 1000px) {
+  .header-actions > .tour-trigger { width: 44px; padding: 0; flex-shrink: 0; }
+  .tour-trigger-label { display: none; }
+}

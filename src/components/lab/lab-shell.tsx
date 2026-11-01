@@ -10,6 +10,7 @@ import {
 import { ACTIVITIES, WORLDS } from '@/data';
 import { METRICS, type ActivityId, type ExperimentRecipe, type MetricId, type ParameterDescriptor, type SavedExperiment, type TelemetrySample, type WorldId } from '@/domain';
 import { AssistantPanel } from './assistant-panel';
+import { FeatureTour, TOUR_STORAGE_KEY } from './feature-tour';
 import { DRAFT_KEY, useLabStore } from '@/state/lab-store';
 import { cloudConfigured } from '@/lib/supabase/browser';
 import { deleteExperiment, listExperiments, loadExperiment, saveExperiment } from '@/lib/persistence/experiments';
@@ -72,7 +73,7 @@ function pointsFor(clean: ChartPoint[], domain: ChartDomain | null, width: numbe
 }
 
 function ActivityPalette({ compact = false, active, onSelect }: { compact?: boolean; active: ActivityId; onSelect: (id: ActivityId) => void }) {
-  return <section className={compact ? 'activity-palette compact' : 'activity-palette'} aria-label="Choose an activity">
+  return <section className={compact ? 'activity-palette compact' : 'activity-palette'} aria-label="Choose an activity" data-tour="activities">
     {!compact && <div className="section-heading"><h2>Activities</h2></div>}
     <div className="activity-list">
       {activityOrder.map(id => {
@@ -103,7 +104,7 @@ function ParameterNumber({ parameter, value, update }: {parameter: ParameterDesc
 function ParameterInspector({ recipe, update }: { recipe: ExperimentRecipe; update: (key: string, value: unknown) => void }) {
   const activity = ACTIVITIES[recipe.activityId];
   const params = recipe.params as Record<string, unknown>;
-  return <section className="inspector-panel" aria-label="Experiment setup">
+  return <section className="inspector-panel" data-tour="parameters" aria-label="Experiment setup">
     <div className="section-heading"><h2>Setup</h2><SlidersHorizontal size={16} aria-hidden="true" /></div>
     <div className="parameter-list">
       {activity.parameters.map(parameter => {
@@ -154,7 +155,7 @@ function ResultsPanel() {
   const activeSamples = samples[recipe.worldId] ?? []; const earthSamples = comparison ? samples.earth ?? [] : [];
   const summary = summaries[recipe.worldId]; const earthSummary = summaries.earth;
   const live = sampleMetric(recipe, activeSamples.at(-1)); const metricIds = ACTIVITIES[recipe.activityId].metricIds;
-  return <section className="results-panel" id="results-panel" role="tabpanel" tabIndex={-1} aria-labelledby="tab-results" aria-label="Measurements and results">
+  return <section className="results-panel" data-tour="results" id="results-panel" role="tabpanel" tabIndex={-1} aria-labelledby="tab-results" aria-label="Measurements and results">
     <div className="results-heading"><h2>{summary ? 'Run result' : status === 'running' ? 'Live readout' : 'Measurements'}</h2><span className={`status-chip ${status}`}><i/>{status === 'running' ? 'Live' : status === 'completed' ? 'Complete' : status === 'paused' ? 'Paused' : 'Ready'}</span></div>
     <div className="measurement-row">
       {summary ? metricIds.map(id => <div className="measurement" key={id}><span>{METRICS[id].label}</span><strong>{metricValue(summary.metrics[id], id)}</strong>{comparison && <><small>Earth: {metricValue(earthSummary?.metrics[id], id)}</small>{summary.metrics[id] !== undefined && earthSummary?.metrics[id] !== undefined && <small>Δ vs Earth: {summary.metrics[id]-earthSummary.metrics[id] > 0 ? '+' : ''}{(summary.metrics[id]-earthSummary.metrics[id]).toFixed(METRICS[id].precision)} {METRICS[id].unit}</small>}</>}</div>) : <div className="measurement live-measurement"><span>{live?.label ?? 'Simulation time'}</span><strong>{live?.value ?? `${activeSamples.at(-1)?.timeS.toFixed(2) ?? '0.00'} s`}</strong><small>{live ? `at ${live.time.toFixed(2)} s` : 'No samples recorded'}</small></div>}
@@ -166,12 +167,13 @@ function ResultsPanel() {
   </section>;
 }
 
-function TransportControls({ compact = false }: { compact?: boolean }) {
+function TransportControls({ compact = false, onTour }: { compact?: boolean; onTour: () => void }) {
   const status = useLabStore(s => s.status); const run = useLabStore(s => s.run); const pause = useLabStore(s => s.pause); const step = useLabStore(s => s.step); const reset = useLabStore(s => s.reset); const comparison = useLabStore(s => s.comparison); const error = useLabStore(s => s.error);
-  return <div className={compact ? 'transport-controls compact' : 'transport-controls'}>
+  return <div className={compact ? 'transport-controls compact' : 'transport-controls'} data-tour="controls">
     <button className="run-button" onClick={() => status === 'running' ? pause() : run()} disabled={status === 'error'}>{status === 'running' ? <><Pause size={15} fill="currentColor"/> Pause</> : <><Play size={15} fill="currentColor"/> {status === 'paused' ? 'Resume' : status === 'completed' ? 'Run again' : 'Run'}</>}</button>
     <button className="transport-button" onClick={step} disabled={status === 'running' || status === 'completed'}><SkipForward size={15}/><span>Step</span></button>
     <button className="transport-button" onClick={reset}><RotateCcw size={15}/><span>Reset</span></button>
+    <button className="tour-trigger mobile-tour-trigger" type="button" onClick={onTour} aria-label="Take a tour"><CircleHelp size={15} aria-hidden="true"/> Tour</button>
     <span className="transport-readout"><Clock3 size={13}/>{status === 'running' ? 'Simulation running' : status === 'paused' ? 'Paused · state retained' : status === 'completed' ? 'Run complete' : status === 'error' ? 'Reset to recover' : 'Ready'}{comparison && <i> · Earth comparison</i>}</span>
     {error && <span className="inline-lab-error" role="status">{error}</span>}
   </div>;
@@ -201,25 +203,29 @@ function SettingsDialog({ open, onClose }: {open:boolean;onClose:()=>void}) {
   return <dialog ref={ref} className="settings-dialog" aria-labelledby="settings-title" onCancel={onClose} onClose={onClose}><div className="dialog-header"><h2 id="settings-title">Lab settings</h2><form method="dialog"><button className="icon-button" aria-label="Close settings"><X size={17}/></button></form></div><div className="settings-row"><span><b>Cloud persistence</b><small>Save experiments across visits</small></span><strong>{cloudConfigured() ? 'Configured' : 'Unavailable'}</strong></div><p className="settings-note">Physics and measurements remain available without an account or cloud connection.</p></dialog>;
 }
 
-function LabHeader({onSave,onSettings}:{onSave:()=>void;onSettings:()=>void}) {
+function LabHeader({onSave,onSettings,onTour}:{onSave:()=>void;onSettings:()=>void;onTour:()=>void}) {
   const recipe=useLabStore(s=>s.recipe); const selectWorld=useLabStore(s=>s.selectWorld); const comparison=useLabStore(s=>s.comparison); const setComparison=useLabStore(s=>s.setComparison); const [menu,setMenu]=useState(false);
   const world=WORLDS[recipe.worldId]; const activity=ACTIVITIES[recipe.activityId];
   return <header className="lab-header"><Link className="brand" href="/" aria-label="Planet Lab home"><span className="brand-mark"><svg viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="7"/><ellipse cx="15" cy="15" rx="13" ry="5.6" transform="rotate(-28 15 15)"/><circle cx="25" cy="8" r="1.5" className="orbit-dot"/></svg></span><h1 className="brand-name">Planet <b>Lab</b><small>Field workbench</small></h1></Link>
     <span className="header-divider" aria-hidden="true"/><div className="header-context"><strong>{activity.name}</strong></div>
-    <div className="header-world"><label htmlFor="world-select"><Globe2 size={15}/><span>World</span></label><div className="world-select-wrap"><select id="world-select" value={recipe.worldId} onChange={e=>selectWorld(e.target.value as WorldId)}>{worldOrder.map(id=><option key={id} value={id}>{WORLDS[id].name}</option>)}</select><ChevronDown size={14}/></div><span className="world-conditions">{world.gravityMps2.toFixed(2)} m/s²</span></div>
-    <div className="header-actions"><button className={`compare-button${comparison?' is-active':''}`} aria-label={comparison?'Comparing with Earth':'Compare with Earth'} aria-pressed={comparison} onClick={()=>setComparison(!comparison)} disabled={recipe.worldId==='earth'} title={recipe.worldId==='earth'?'Choose another world to compare with Earth':undefined}><GitCompareArrows size={16} aria-hidden="true"/><span>{comparison?'Comparing Earth':'Compare Earth'}</span></button><button className="header-icon-button" onClick={onSave} aria-label="Saved experiments"><Save size={16}/></button><button className="header-icon-button" onClick={onSettings} aria-label="Settings"><Settings2 size={16}/></button><button className="mobile-menu-button" aria-label="Open activity selection" onClick={()=>setMenu(!menu)}><Menu size={18}/></button></div>
+    <div className="header-world" data-tour="world"><label htmlFor="world-select"><Globe2 size={15}/><span>World</span></label><div className="world-select-wrap"><select id="world-select" value={recipe.worldId} onChange={e=>selectWorld(e.target.value as WorldId)}>{worldOrder.map(id=><option key={id} value={id}>{WORLDS[id].name}</option>)}</select><ChevronDown size={14}/></div><span className="world-conditions">{world.gravityMps2.toFixed(2)} m/s²</span></div>
+    <div className="header-actions"><button type="button" className="tour-trigger" onClick={onTour} aria-label="Take a tour"><CircleHelp size={15} aria-hidden="true"/><span className="tour-trigger-label">Take a tour</span></button><button data-tour="compare" className={`compare-button${comparison?' is-active':''}`} aria-label={comparison?'Comparing with Earth':'Compare with Earth'} aria-pressed={comparison} onClick={()=>setComparison(!comparison)} disabled={recipe.worldId==='earth'} title={recipe.worldId==='earth'?'Choose another world to compare with Earth':undefined}><GitCompareArrows size={16} aria-hidden="true"/><span>{comparison?'Comparing Earth':'Compare Earth'}</span></button><button className="header-icon-button" onClick={onSave} data-tour="saved" aria-label="Saved experiments"><Save size={16}/></button><button className="header-icon-button" onClick={onSettings} data-tour="settings" aria-label="Settings"><Settings2 size={16}/></button><button className="mobile-menu-button" data-tour="activity-menu" aria-label="Open activity selection" onClick={()=>setMenu(!menu)}><Menu size={18}/></button></div>
     {menu&&<div className="mobile-activity-menu"><ActivityPalette compact active={recipe.activityId} onSelect={id=>{useLabStore.getState().selectActivity(id);setMenu(false)}}/></div>}
   </header>;
 }
 
 function SceneFrame({children,onResetCamera}:{children:ReactNode;onResetCamera?:()=>void}) {
   const recipe=useLabStore(s=>s.recipe);const comparison=useLabStore(s=>s.comparison);
-  return <section className="scene-frame" aria-label="Experiment scene"><div className="scene-world-label"><span className="world-live-dot"/><div><b>{WORLDS[recipe.worldId].name}</b><small>Primary view</small></div></div>{comparison&&<div className="earth-world-label"><span className="earth-dash"/><div><b>Earth</b><small>Reference</small></div></div>}<div className="scene-content">{children}</div><div className="scene-toolbar"><button onClick={onResetCamera} disabled={!onResetCamera} aria-label="Reset camera" title="Reset camera"><Compass size={16}/></button><span>Orbit view</span></div></section>;
+  return <section className="scene-frame" aria-label="Experiment scene"><div className="scene-world-label"><span className="world-live-dot"/><div><b>{WORLDS[recipe.worldId].name}</b><small>Primary view</small></div></div>{comparison&&<div className="earth-world-label"><span className="earth-dash"/><div><b>Earth</b><small>Reference</small></div></div>}<div className="scene-content">{children}</div><div className="scene-toolbar" data-tour="camera"><button onClick={onResetCamera} disabled={!onResetCamera} aria-label="Reset camera" title="Reset camera"><Compass size={16}/></button><span>Orbit view</span></div></section>;
 }
 
 export function LabShell({children,onResetCamera}:LabShellProps) {
   const recipe=useLabStore(s=>s.recipe); const selectActivity=useLabStore(s=>s.selectActivity);const updateParam=useLabStore(s=>s.updateParam);const error=useLabStore(s=>s.error);
-  const [showSaved,setShowSaved]=useState(false);const [showSettings,setShowSettings]=useState(false);const [mobileTab,setMobileTab]=useState<MobileTab>('setup');
+  const [showSaved,setShowSaved]=useState(false);const [showSettings,setShowSettings]=useState(false);const [mobileTab,setMobileTab]=useState<MobileTab>('setup');const [showTour,setShowTour]=useState(false);
+  useEffect(() => {
+    try { if(localStorage.getItem(TOUR_STORAGE_KEY) !== 'seen') setShowTour(true); }
+    catch { setShowTour(true); }
+  },[]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if(event.repeat || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
@@ -248,16 +254,17 @@ export function LabShell({children,onResetCamera}:LabShellProps) {
     event.preventDefault(); tabs[next].focus(); tabs[next].click();
   };
   return <div className="lab-shell" data-mobile-tab={mobileTab}>
-    <LabHeader onSave={()=>setShowSaved(true)} onSettings={()=>setShowSettings(true)}/>
+    <LabHeader onSave={()=>setShowSaved(true)} onSettings={()=>setShowSettings(true)} onTour={()=>setShowTour(true)}/>
     {error&&<div className="lab-error-banner" role="status"><CircleHelp size={14}/><span>{error}</span>{error.includes('Original data remains in browser storage')&&<button className="download-draft" onClick={()=>{const raw=localStorage.getItem(`${DRAFT_KEY}.invalid`);if(!raw)return;const url=URL.createObjectURL(new Blob([raw],{type:'text/plain'}));const link=document.createElement('a');link.href=url;link.download='planet-lab-original-draft.txt';link.click();URL.revokeObjectURL(url);}}>Download original draft</button>}<button onClick={()=>useLabStore.getState().setError(null)} aria-label="Dismiss message"><X size={14}/></button></div>}
     <main className="lab-main">
       <div className="mobile-setup" id="setup-panel" role="tabpanel" tabIndex={-1} aria-labelledby="tab-setup"><ActivityPalette active={recipe.activityId} onSelect={selectActivity}/><ParameterInspector recipe={recipe} update={updateParam}/></div>
       <SceneFrame onResetCamera={onResetCamera}>{children}</SceneFrame>
-      <TransportControls compact/>
+      <TransportControls compact onTour={()=>setShowTour(true)}/>
       <div className="mobile-tabs" role="tablist" aria-label="Workbench sections" onKeyDown={tabKeyDown}>{(['setup','results','ask'] as const).map(tab=><button id={`tab-${tab}`} key={tab} role="tab" aria-controls={`${tab}-panel`} aria-selected={mobileTab===tab} tabIndex={mobileTab===tab?0:-1} onClick={()=>setMobileTab(tab)}>{tab==='setup'?'Setup':tab==='results'?'Results':'Ask'}</button>)}</div>
       <ResultsPanel/>
       <AssistantPanel/>
     </main>
+    <FeatureTour open={showTour} onClose={()=>setShowTour(false)} panel={mobileTab} onPanelChange={setMobileTab}/>
     <SavedExperimentsDialog open={showSaved} onClose={()=>setShowSaved(false)}/><SettingsDialog open={showSettings} onClose={()=>setShowSettings(false)}/>
   </div>;
 }
