@@ -144,3 +144,9 @@ Six-world catalog, controls and strict recipe expansion integrated. Additive SQL
 Six worlds and six activities ready. Physics fixes pass 45 unit and 19 browser tests; SQL expansion and secret scan pass.
 
 **Next action:** Deploy expanded catalog to Vercel and verify public experiments.
+
+## 2026-11-01T16:26:41Z · codex · ready-for-handoff
+
+Six worlds and six activities deployed. 45 unit tests, 19 browser tests and live production physics checks pass. Supabase setup pending.
+
+**Next action:** Apply all Supabase migrations and enable anonymous sign-in.

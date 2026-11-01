@@ -102,3 +102,9 @@ Next: apply both SQL migrations in filename order, enable anonymous sign-in, the
 - The third additive SQL migration and both rollback-only regression files passed in local PGlite with the Auth stub. Existing owner isolation and privileged quota permissions are preserved. No live database migration was applied in this feature update.
 - The final local browser bundle was scanned for configured OpenAI and Supabase secret values: no matches.
 - Approximation boundaries remain visible: fixed reference atmosphere and drag coefficients; no CFD, heat, buoyancy or material-survival model. Tiny rebounds below the solver's temporal resolution can measure zero retained height.
+
+Expanded production deployment: [planet-lab-drab.vercel.app](https://planet-lab-drab.vercel.app), deployment `dpl_DPW4LYG4gZVDzTPJx1KThvDmAVYg`, source commit `8621094`. Vercel build passed and the production alias was verified without a login.
+
+The live browser confirmed six world choices and six activities. Mercury's 2 m vacuum drop measured 1.04 s; Titan's default first rebound measured 1.48 m; the Venus launch reference measured 3.03 s, 0.24 m range and 0.76 m/s impact speed. All passed the same documented reference bounds. `/lab` returned 200 and an unauthenticated assistant POST returned 401. Mobile layout fit the viewport, no page errors or failed script/style requests occurred, and fetched JavaScript contained no configured secret values. Desktop and mobile captures were visually inspected.
+
+A fresh read-only Supabase check still returned 404 for both app tables and reported anonymous sign-in disabled. All three migrations and Auth setup remain necessary for cloud saves and AI; this deployment does not claim those features are operational.
