@@ -1,0 +1,12 @@
+.env
+.env.*
+.next/
+node_modules/
+.taste-skill/
+test-results/
+playwright-report/
+agent-coordination/
+.agents/
+.claude/
+.codex/
+.githooks/

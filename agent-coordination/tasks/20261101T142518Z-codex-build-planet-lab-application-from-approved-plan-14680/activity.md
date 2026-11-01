@@ -96,3 +96,15 @@ Takeover from unassigned. Agent continuation requested. Previous checkpoint by c
 Supabase keys verified. Expected tables and RPCs absent from API; anonymous sign-in disabled. Read-only findings documented.
 
 **Next action:** Complete Supabase schema and anonymous-auth setup.
+
+## 2026-11-01T15:47:18Z · codex · in-progress
+
+Takeover from unassigned. Agent continuation requested. Previous checkpoint by codex: Supabase keys verified. Expected tables and RPCs absent from API; anonymous sign-in disabled. Read-only findings documented.
+
+**Next action:** Complete Supabase schema and anonymous-auth setup.
+
+## 2026-11-01T15:49:10Z · codex · in-progress
+
+Local server running. Build, four browser tests and bundle secret scan pass. Vercel project linked and production environment configured.
+
+**Next action:** Deploy production to Vercel and verify public access.

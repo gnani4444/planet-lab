@@ -16,3 +16,4 @@ agent-coordination/.taskboard.*
 test-results/
 playwright-report/
 .taste-skill/
+.vercel
