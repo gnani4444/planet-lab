@@ -6,10 +6,10 @@ created_by: codex
 status: ready-for-handoff
 scope: src public tests supabase package.json pnpm-lock.yaml configs README.md docs PLAN.md
 created_at: 2026-11-01T14:25:18Z
-updated_at: 2026-11-01T15:35:56Z
+updated_at: 2026-11-01T15:40:38Z
 current_executor: unassigned
 last_agent: codex
-last_summary: Fixed recipe validator permissions. Local SQL save, validation and owner-isolation checks pass; 17 server tests pass. Live cloud checks remain.
-next_action: Configure external services and Git remote, then verify cloud and public deployment gates.
+last_summary: Created git-ignored .env.local from template with owner-only permissions. Required credential values await configuration.
+next_action: Fill the four required credentials in .env.local.
 plan: plan.md
 activity: activity.md

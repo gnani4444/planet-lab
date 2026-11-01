@@ -72,3 +72,15 @@ Takeover from unassigned. Agent continuation requested. Previous checkpoint by c
 Fixed recipe validator permissions. Local SQL save, validation and owner-isolation checks pass; 17 server tests pass. Live cloud checks remain.
 
 **Next action:** Configure external services and Git remote, then verify cloud and public deployment gates.
+
+## 2026-11-01T15:40:22Z · codex · in-progress
+
+Takeover from unassigned. Agent continuation requested. Previous checkpoint by codex: Fixed recipe validator permissions. Local SQL save, validation and owner-isolation checks pass; 17 server tests pass. Live cloud checks remain.
+
+**Next action:** Configure external services and Git remote, then verify cloud and public deployment gates.
+
+## 2026-11-01T15:40:38Z · codex · ready-for-handoff
+
+Created git-ignored .env.local from template with owner-only permissions. Required credential values await configuration.
+
+**Next action:** Fill the four required credentials in .env.local.
