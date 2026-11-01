@@ -4,9 +4,11 @@ Same experiment. Different world. A browser physics workbench for Earth, the Moo
 
 Run a controlled rover launch, throw a projectile, measure a pendulum, or calculate reference drag in a wind tunnel. Compare Earth with identical inputs. Measurements come from the simulation; world constants and model assumptions stay visible.
 
+Production: [Planet Lab on Vercel](https://planet-lab-drab.vercel.app). Cloud saves and the assistant still require the Supabase migrations and anonymous sign-in setup.
+
 ## Run locally
 
-Node 22 or newer; pnpm 10.34.9. No cloud keys are needed for the local lab.
+Node 22.x; pnpm 10.34.9. No cloud keys are needed for the local lab.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -37,7 +39,7 @@ Three GPT-6 Luna agents built simulation, UI, and backend lanes. Codex scaffolde
 
 Copy `.env.example` to `.env.local` and set credentials. See [backend setup](docs/backend-setup.md) and [hosting plan](docs/planet-lab-hosting.md) for migrations, anonymous authentication, quotas, RLS, and deployment. Public environment variables require rebuilding after changes.
 
-Without credentials, AI and cloud saves display unavailable states. Your local lab remains usable. Cloud migrations, two-user RLS isolation, live OpenAI calls, and a public deployment require separate verification; mocked tests do not establish those gates.
+Without credentials, AI and cloud saves display unavailable states. Your local lab remains usable. Cloud migrations, two-user RLS isolation and live OpenAI calls require separate verification; mocked tests do not establish those gates. Vercel production uses the explicit Next.js preset in `vercel.json`; `.vercelignore` excludes local credential files from deployment uploads.
 
 ## Model limits
 

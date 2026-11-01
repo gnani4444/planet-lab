@@ -114,3 +114,9 @@ Local server running. Build, four browser tests and bundle secret scan pass. Ver
 Public 404 traced to Vercel Other framework serving public only. Added explicit Next.js preset and Node 22 pin.
 
 **Next action:** Redeploy and repeat public browser checks.
+
+## 2026-11-01T15:53:56Z · codex · ready-for-handoff
+
+Local app runs on port 3000. Vercel production verified: physics, Earth comparison, mobile layout, assets and secret scans pass. Cloud setup pending.
+
+**Next action:** Apply Supabase migrations and enable anonymous sign-in.

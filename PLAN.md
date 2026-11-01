@@ -1,6 +1,6 @@
 # Planet Lab — build plan
 
-Status: local application implemented. Supabase/OpenAI are unconfigured; public deployment and external release gates remain open.
+Status: local application implemented and deployed to Vercel. Credentials are configured; Supabase schema/authentication and live cloud/AI release gates remain open.
 Style: caveman, per user request. Date: November 1, 2026.
 
 ## Product
@@ -104,6 +104,6 @@ Report shipped feature IDs, deferred IDs, tests, deployment URL, and known model
 
 ## Implementation handoff — November 1, 2026
 
-Local build: F01–F08 and local F10 implemented. F09/cloud F10 adapters and migration implemented; external validation awaits credentials. F11 awaits project setup and deployment. P1 remains deferred.
+Local build: F01–F08 and local F10 implemented. F09/cloud F10 adapters and migrations implemented; external validation awaits live Supabase schema/authentication setup. F11 has a production deployment at [planet-lab-drab.vercel.app](https://planet-lab-drab.vercel.app); full cloud release gates remain open. P1 remains deferred.
 
 Evidence, known model limits, responsive review, and remaining gates: [verification](docs/verification.md). Run/setup: [README](README.md).

@@ -55,9 +55,9 @@ The colour-sprawl warning is expected: natural Mars terrain occupies the dominan
 
 ## External gates still open
 
-No Git remote is configured, so commits remain local. Supabase and OpenAI environment variables are absent. No matching linked Vercel project exists. The migration has been statically reviewed but has not been applied to a database. Two-user RLS attacks, concurrent durable quota reservations, real OpenAI structured output/usage, and deployed asset loading remain unverified.
+No Git remote is configured, so commits remain local; Vercel production was deployed directly through its authenticated CLI. Supabase and OpenAI environment values are configured locally and in Vercel production. Local SQL regression checks and public simulator checks passed, as detailed below. Live Supabase schema/authentication setup, two-user RLS attacks, concurrent durable quota reservations and real OpenAI structured output/usage remain unverified.
 
-F01–F08 and local F10 are implemented and locally exercised. F09 and cloud F10 have code and mocked boundary coverage; they require live service configuration. F11 is pending. P1 features remain deferred.
+F01–F08 and local F10 are implemented and locally exercised. F09 and cloud F10 have code and mocked boundary coverage; they require live service setup. F11 public hosting is verified; full cloud release gates remain open. P1 features remain deferred.
 
 An approximately 29-second silent local browser capture exists beside the chat artifacts as `planet-lab-demo.webm`. It shows working rover comparison, Moon wind drag, and pendulum measurements. It is not a narrated submission video, public deployment, or hackathon submission.
 
@@ -78,3 +78,15 @@ Read `.env.local` without printing credential values and performed read-only HTT
 - Owner isolation and quota behavior could not be verified live because the expected schema was unavailable. OpenAI was not called, and no live records were changed.
 
 Next: apply both SQL migrations in filename order, enable anonymous sign-in, then run the live save and isolation checks.
+
+## Local run and Vercel production — 2026-11-01
+
+- Local production server: `http://localhost:3000`, rebuilt with `.env.local`; production build passed.
+- Four simulator browser journeys passed against the new build. The credential-absent mobile test was excluded because credentials are now configured; a separate 390×844 mobile check passed layout, physics stepping and unauthenticated assistant rejection with no page errors.
+- Production: [planet-lab-drab.vercel.app](https://planet-lab-drab.vercel.app). Deployment `dpl_5jqvKuv4ibjE7VxaARaf3RsCyhaj`, source commit `642c630`.
+- Explicit `framework: nextjs` in `vercel.json` fixes the initial project's Other preset serving only `public/` and returning 404. Node is pinned to `22.x` to match local validation. `.vercelignore` excludes local credential files and development artifacts.
+- All six environment names from `.env.example` are configured for production; the canonical app URL points to the production alias. OpenAI and Supabase secret values are sensitive environment variables, passed through stdin without printing them.
+- Clean browser: `/` and `/lab` returned HTTP 200 without a Vercel login. A rover run measured Mars range of 13.82 m; Earth comparison rendered measured results. Desktop 1440×900 and mobile 390×844 checks passed, with no browser errors or failed script/style assets.
+- `/api/assistant` GET returned HTTP 200; this checks configuration presence only. A POST without authentication returned HTTP 401. No paid provider request was sent.
+- Both the local browser bundle and fetched production JavaScript were scanned for the configured OpenAI and Supabase secret values; no matches were found.
+- Production screenshot: `planet-lab-production.png` in the chat's visualization artifacts. Cloud save and AI remain dependent on the Supabase setup described above. No preview deployment or live cloud release is claimed.
