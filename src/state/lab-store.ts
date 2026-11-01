@@ -30,27 +30,27 @@ export const useLabStore = create<LabState>((set, get) => ({
   reset() {set(s => ({revision: s.revision + 1, status: 'ready', ...cleared, transport: {action: 'reset', sequence: s.transport.sequence + 1}}));},
   step() {if (get().status === 'completed' || get().status === 'error') return; set(s => ({status: 'paused', transport: {action: 'step', sequence: s.transport.sequence + 1}}));},
   setComparison(value) {if(value && get().recipe.worldId === 'earth') {set({error: 'Choose Moon or Mars to compare with Earth.'}); return;} set(s => ({comparison: value, revision: s.revision + 1, status: 'ready', ...cleared, transport: {action: 'reset', sequence: s.transport.sequence + 1}}));},
-  acceptSample(sample, world, revision) {const s = get(); if(revision !== s.revision || !Number.isFinite(sample.timeS) || (world !== s.recipe.worldId && !(s.comparison && world === 'earth'))) return; set({samples: {...s.samples, [world]: [...(s.samples[world] ?? []), sample].slice(-600)}});},
+  acceptSample(sample, world, revision) {const s = get(); if(!['running', 'paused'].includes(s.status) || revision !== s.revision || !Number.isFinite(sample.timeS) || (world !== s.recipe.worldId && !(s.comparison && world === 'earth'))) return; set({samples: {...s.samples, [world]: [...(s.samples[world] ?? []), sample].slice(-600)}});},
   acceptSummary(input) {
     const parsed = runSummarySchema.safeParse(input); if (!parsed.success) return;
     const summary = parsed.data; const s = get();
     if(summary.revision !== s.revision || !['running','paused'].includes(s.status)) return;
     const expected = {...s.recipe, worldId: summary.recipe.worldId};
-    if(JSON.stringify(expected) !== JSON.stringify(summary.recipe) || (summary.recipe.worldId !== s.recipe.worldId && !(s.comparison && summary.recipe.worldId === 'earth'))) return;
+    if(JSON.stringify(experimentRecipeSchema.parse(expected)) !== JSON.stringify(summary.recipe) || (summary.recipe.worldId !== s.recipe.worldId && !(s.comparison && summary.recipe.worldId === 'earth'))) return;
     const summaries = {...s.summaries, [summary.recipe.worldId]: summary};
     set({summaries, status: summaries[s.recipe.worldId] && (!s.comparison || summaries.earth) ? 'completed' : s.status});
   },
-  setStatus(status, revision) {if (revision !== get().revision) return; if(status === 'ready' && get().status !== 'loading') return; if(status === 'completed') return; set({status});},
+  setStatus(status, revision) {if (revision !== get().revision) return; if(status === 'loading' && ['running','paused'].includes(get().status)) return; if(status === 'ready' && get().status !== 'loading') return; if(status === 'completed') return; set({status});},
   setError(error) {set({error});},
   dispatch(input) {const parsed = labCommandSchema.safeParse(input); if(!parsed.success) {set({error: 'Unsupported command.'});return false;} const command: LabCommand = parsed.data; if(command.type === 'configure') {if(!get().configure(command.recipe)) return false; if(command.run) get().run();} else {const action = command.action; if(action === 'compare') get().setComparison(true); else get()[action]();} return true;},
 }));
 
 export const DRAFT_KEY = 'planet-lab.recipe.v1';
 export function restoreDraft(): 'restored' | 'empty' | 'invalid' {
-  try { const raw = localStorage.getItem(DRAFT_KEY); if(!raw) return 'empty'; const data = experimentRecipeSchema.safeParse(JSON.parse(raw)); if(!data.success) return 'invalid'; useLabStore.getState().configure(data.data); return 'restored'; } catch {return 'invalid';}
+  try { const raw = localStorage.getItem(DRAFT_KEY); if(!raw) return 'empty'; let input: unknown; try {input = JSON.parse(raw);} catch {localStorage.setItem(`${DRAFT_KEY}.invalid`, raw); return 'invalid';} const data = experimentRecipeSchema.safeParse(input); if(!data.success) {localStorage.setItem(`${DRAFT_KEY}.invalid`, raw); return 'invalid';} useLabStore.getState().configure(data.data); return 'restored'; } catch {return 'invalid';}
 }
 export function persistDraft(): () => void {
   let timer: ReturnType<typeof setTimeout>;
-  const unsubscribe = useLabStore.subscribe((state, previous) => {if(state.recipe === previous.recipe) return; clearTimeout(timer); timer = setTimeout(() => {try {localStorage.setItem(DRAFT_KEY, JSON.stringify(state.recipe));} catch {useLabStore.getState().setError('Local storage unavailable. Keep this tab open to preserve your experiment.');}}, 200);});
+  const unsubscribe = useLabStore.subscribe((state, previous) => {if(state.recipe === previous.recipe && !(state.transport.action === 'reset' && state.transport.sequence !== previous.transport.sequence)) return; clearTimeout(timer); timer = setTimeout(() => {try {localStorage.setItem(DRAFT_KEY, JSON.stringify(state.recipe));} catch {useLabStore.getState().setError('Local storage unavailable. Keep this tab open to preserve your experiment.');}}, 200);});
   return () => {clearTimeout(timer); unsubscribe();};
 }

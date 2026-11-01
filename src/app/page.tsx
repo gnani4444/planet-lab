@@ -1,1 +1,2 @@
-export default function Home() {return <main><h1>Planet Lab</h1><p>Workbench foundation. Choose a world. Run an experiment. Compare Earth.</p><p>Simulation, UI, and backend lanes follow the frozen domain contract.</p></main>;}
+import LabClient from './lab-client';
+export default function Home() {return <LabClient/>;}
