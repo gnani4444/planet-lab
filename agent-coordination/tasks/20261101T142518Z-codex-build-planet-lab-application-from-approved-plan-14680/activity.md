@@ -108,3 +108,9 @@ Takeover from unassigned. Agent continuation requested. Previous checkpoint by c
 Local server running. Build, four browser tests and bundle secret scan pass. Vercel project linked and production environment configured.
 
 **Next action:** Deploy production to Vercel and verify public access.
+
+## 2026-11-01T15:51:55Z · codex · in-progress
+
+Public 404 traced to Vercel Other framework serving public only. Added explicit Next.js preset and Node 22 pin.
+
+**Next action:** Redeploy and repeat public browser checks.
