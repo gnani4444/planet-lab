@@ -3,12 +3,12 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import { BallCollider, CuboidCollider, Physics, RigidBody, useRapier, useSphericalJoint } from '@react-three/rapier';
+import { BallCollider, CoefficientCombineRule, CuboidCollider, Physics, RigidBody, useRapier, useSphericalJoint } from '@react-three/rapier';
 import type { RapierRigidBody } from '@react-three/rapier';
 import * as THREE from 'three';
 import type { ExperimentRecipe, RunStatus, TelemetrySample, RunSummary, WorldId } from '@/domain';
 import { ACTIVITIES, WORLDS } from '@/data';
-import { FIXED_DT, MODEL_VERSION } from './physics';
+import { FIXED_DT, MODEL_VERSION, integrateQuadraticDragMotion, runToCompletion, summarizePhysics } from './physics';
 import {createTrajectoryGeometry, updateTrajectoryGeometry} from './trajectory';
 
 export type SimulationViewProps = {
@@ -57,6 +57,12 @@ type RuntimeState = {
   crossings: number[];
   previousAngle: number | null;
   contact: boolean;
+  impactCount: number;
+  reboundStarted: boolean;
+  firstImpactTimeS: number | null;
+  firstImpactTick: number | null;
+  firstImpactSpeedMps: number | null;
+  reboundMaxHeight: number;
   emitted: boolean;
   trajectory: [number, number, number][];
 };
@@ -71,6 +77,7 @@ const runUuid = () => {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
 const startPosition = (recipe: ExperimentRecipe): [number, number, number] => {
+  if (recipe.activityId === 'free-fall' || recipe.activityId === 'bounce') return [0, recipe.params.heightM + 0.18, 0];
   if (recipe.activityId === 'rover-ramp') return [0, 0.43, 0];
   if (recipe.activityId === 'projectile') return [0, recipe.params.releaseHeightM + (recipe.params.objectId === 'sphere' ? 0.18 : 0.16), 0];
   if (recipe.activityId === 'pendulum') {
@@ -79,7 +86,7 @@ const startPosition = (recipe: ExperimentRecipe): [number, number, number] => {
   }
   return [0, 1, 0];
 };
-const contactHeight = (recipe: ExperimentRecipe) => recipe.activityId === 'projectile' ? (recipe.params.objectId === 'sphere' ? 0.18 : 0.16) : recipe.activityId === 'rover-ramp' ? 0.13 : 0;
+const contactHeight = (recipe: ExperimentRecipe) => recipe.activityId === 'free-fall' || recipe.activityId === 'bounce' ? 0.18 : recipe.activityId === 'projectile' ? (recipe.params.objectId === 'sphere' ? 0.18 : 0.16) : recipe.activityId === 'rover-ramp' ? 0.13 : 0;
 const startVelocity = (recipe: ExperimentRecipe): [number, number, number] => {
   if (recipe.activityId === 'rover-ramp') {
     const theta = recipe.params.launchAngleDeg * Math.PI / 180;
@@ -94,7 +101,7 @@ const startVelocity = (recipe: ExperimentRecipe): [number, number, number] => {
 function emptyRuntime(recipe: ExperimentRecipe): RuntimeState {
   const position = startPosition(recipe);
   const angle = recipe.activityId === 'pendulum' ? recipe.params.initialAngleDeg * Math.PI / 180 : null;
-  return { tick: 0, elapsedS: 0, position, velocity: startVelocity(recipe), maxHeight: recipe.activityId === 'pendulum' ? 4.2 : position[1] - contactHeight(recipe), angle, crossings: [], previousAngle: angle, contact: false, emitted: false, trajectory: [position] };
+  return { tick: 0, elapsedS: 0, position, velocity: startVelocity(recipe), maxHeight: recipe.activityId === 'pendulum' ? 4.2 : position[1] - contactHeight(recipe), angle, crossings: [], previousAngle: angle, contact: false, impactCount: 0, reboundStarted: false, firstImpactTimeS: null, firstImpactTick: null, firstImpactSpeedMps: null, reboundMaxHeight: 0, emitted: false, trajectory: [position] };
 }
 function dragFor(recipe: ExperimentRecipe, worldId: WorldId, velocity: [number, number, number]): number {
   if (recipe.activityId === 'wind-tunnel') {
@@ -102,11 +109,21 @@ function dragFor(recipe: ExperimentRecipe, worldId: WorldId, velocity: [number, 
     const coefficient = p.objectId === 'sphere' ? 0.47 : 1.28;
     return 0.5 * WORLDS[worldId].gasDensityKgM3 * p.windSpeedMps ** 2 * coefficient * p.areaM2;
   }
-  if (recipe.activityId !== 'projectile' || !recipe.params.dragEnabled) return 0;
+  if (!(recipe.activityId === 'projectile' || recipe.activityId === 'free-fall') || !recipe.params.dragEnabled) return 0;
   const speed = Math.hypot(...velocity);
-  const coefficient = recipe.params.objectId === 'sphere' ? 0.47 : 1.05;
-  const area = recipe.params.objectId === 'sphere' ? Math.PI * 0.18 ** 2 : 0.25;
+  const coefficient = recipe.activityId === 'free-fall' ? 0.47 : recipe.params.objectId === 'sphere' ? 0.47 : 1.05;
+  const area = recipe.activityId === 'free-fall' || recipe.params.objectId === 'sphere' ? Math.PI * 0.18 ** 2 : 0.25;
   return 0.5 * WORLDS[worldId].gasDensityKgM3 * speed * speed * coefficient * area;
+}
+
+/** Apply the same drag-then-gravity split used by the fixed Rapier clock, without its contact impulse. */
+function uncollidedVelocity(recipe: ExperimentRecipe, worldId: WorldId, velocity: [number, number, number], dt: number): [number, number, number] {
+  const coefficient = recipe.activityId === 'projectile' && recipe.params.objectId === 'brick' ? 1.05 : 0.47;
+  const area = recipe.activityId === 'projectile' && recipe.params.objectId === 'brick' ? 0.25 : Math.PI * 0.18 ** 2;
+  const mass = recipe.activityId === 'projectile' || recipe.activityId === 'free-fall' ? recipe.params.massKg : 1;
+  const hasDrag = (recipe.activityId === 'projectile' || recipe.activityId === 'free-fall') && recipe.params.dragEnabled;
+  const density = hasDrag ? WORLDS[worldId].gasDensityKgM3 : 0;
+  return integrateQuadraticDragMotion(velocity, dt, WORLDS[worldId].gravityMps2, density, coefficient, area, mass).velocity;
 }
 
 /** One Rapier provider per comparison world; one parent clock advances both in the same tick. */
@@ -124,11 +141,23 @@ function WorldPhysicsContent({ context, worldKey, worldId, offset }: { context: 
   const pendulumLength = recipe.activityId === 'pendulum' ? recipe.params.lengthM : 1;
   const api = useMemo<WorldApi>(() => ({
     step: (dt) => {
-      if (recipe.activityId === 'projectile' && recipe.params.dragEnabled && body.current) {
-        const v = body.current.linvel();
-        const speed = Math.hypot(v.x, v.y, v.z);
-        const force = dragFor(recipe, worldId, [v.x, v.y, v.z]);
-        if (speed > 0 && force > 0) body.current.applyImpulse({ x: -v.x / speed * force * dt, y: -v.y / speed * force * dt, z: -v.z / speed * force * dt }, true);
+      if ((recipe.activityId === 'projectile' || recipe.activityId === 'free-fall') && recipe.params.dragEnabled && body.current) {
+        if (WORLDS[worldId].gasDensityKgM3 > 0) {
+          const v = body.current.linvel();
+          const velocity: [number, number, number] = [v.x, v.y, v.z];
+          const coefficient = recipe.activityId === 'free-fall' || recipe.params.objectId === 'sphere' ? 0.47 : 1.05;
+          const area = recipe.activityId === 'free-fall' || recipe.params.objectId === 'sphere' ? Math.PI * 0.18 ** 2 : 0.25;
+          const motion = integrateQuadraticDragMotion(velocity, dt, WORLDS[worldId].gravityMps2, WORLDS[worldId].gasDensityKgM3, coefficient, area, recipe.params.massKg);
+          const start = body.current.translation();
+          const expected = { x: start.x + motion.displacement[0], y: start.y + motion.displacement[1], z: start.z + motion.displacement[2] };
+          body.current.setLinvel({ x: motion.displacement[0] / dt, y: motion.displacement[1] / dt, z: motion.displacement[2] / dt }, true);
+          stepWorld(dt);
+          const actual = body.current.translation();
+          if (Math.hypot(actual.x - expected.x, actual.y - expected.y, actual.z - expected.z) < 0.0001) {
+            body.current.setLinvel({ x: motion.velocity[0], y: motion.velocity[1], z: motion.velocity[2] }, true);
+          }
+          return;
+        }
       }
       stepWorld(dt);
     },
@@ -174,7 +203,8 @@ function WorldPhysicsContent({ context, worldKey, worldId, offset }: { context: 
   const initialVelocity = startVelocity(recipe);
   const isPendulum = recipe.activityId === 'pendulum';
   const isProjectile = recipe.activityId === 'projectile';
-  const sphere = isProjectile && recipe.params.objectId === 'sphere';
+  const isVerticalSphere = recipe.activityId === 'free-fall' || recipe.activityId === 'bounce';
+  const sphere = isVerticalSphere || (isProjectile && recipe.params.objectId === 'sphere');
   const p = recipe.activityId === 'wind-tunnel' ? recipe.params : null;
 
   return (
@@ -188,8 +218,12 @@ function WorldPhysicsContent({ context, worldKey, worldId, offset }: { context: 
             <BallCollider args={[0.16]} density={recipe.params.bobMassKg / (4 / 3 * Math.PI * 0.16 ** 3)} friction={0.1} restitution={0} />
           </RigidBody>
         ) : isProjectile ? (
-          <RigidBody ref={body} position={localInitial} linearVelocity={initialVelocity} colliders={false} linearDamping={0} angularDamping={0} ccd>
+          <RigidBody ref={body} position={localInitial} linearVelocity={initialVelocity} gravityScale={recipe.params.dragEnabled && WORLDS[worldId].gasDensityKgM3 > 0 ? 0 : 1} colliders={false} linearDamping={0} angularDamping={0} ccd>
             {sphere ? <BallCollider args={[0.18]} density={recipe.params.massKg / (4 / 3 * Math.PI * 0.18 ** 3)} friction={0.55} restitution={0.05} /> : <CuboidCollider args={[0.25, 0.16, 0.16]} density={recipe.params.massKg / (8 * 0.25 * 0.16 * 0.16)} friction={0.6} restitution={0.05} />}
+          </RigidBody>
+        ) : isVerticalSphere ? (
+          <RigidBody ref={body} position={localInitial} linearVelocity={initialVelocity} gravityScale={recipe.activityId === 'free-fall' && recipe.params.dragEnabled && WORLDS[worldId].gasDensityKgM3 > 0 ? 0 : 1} colliders={false} linearDamping={0} angularDamping={0} ccd>
+            <BallCollider args={[0.18]} density={recipe.params.massKg / (4 / 3 * Math.PI * 0.18 ** 3)} friction={0.4} restitution={recipe.activityId === 'bounce' ? recipe.params.restitution : 0} restitutionCombineRule={recipe.activityId === 'bounce' ? CoefficientCombineRule.Max : undefined} />
           </RigidBody>
         ) : recipe.activityId === 'rover-ramp' ? (
           <RigidBody ref={body} position={localInitial} linearVelocity={initialVelocity} colliders={false} linearDamping={0} angularDamping={0} ccd>
@@ -231,7 +265,7 @@ function WorldScene({ context, worldKey, worldId, offset }: { context: EngineCon
       const x = offset - 6 + random() * 12;
       let z = -7 + random() * 14;
       if (x > offset - 4 && x < offset + 7 && Math.abs(z) < 2.4) z = (z < 0 ? -1 : 1) * (2.6 + random() * 1.4);
-      return { x, z, size: 0.12 + random() * (worldId === 'moon' ? 0.75 : 0.42), rotation: random() * Math.PI };
+      return { x, z, size: 0.12 + random() * (WORLDS[worldId].gasDensityKgM3 === 0 ? 0.75 : 0.42), rotation: random() * Math.PI };
     });
   }, [context.recipe.seed, offset, worldId]);
   return (
@@ -243,6 +277,7 @@ function WorldScene({ context, worldKey, worldId, offset }: { context: EngineCon
       {context.recipe.activityId === 'rover-ramp' && <RoverRamp offset={offset} />}
       {context.recipe.activityId === 'rover-ramp' && <Rover context={context} worldKey={worldKey} offset={offset} />}
       {context.recipe.activityId === 'projectile' && <Projectile context={context} worldKey={worldKey} offset={offset} recipe={context.recipe} />}
+      {(context.recipe.activityId === 'free-fall' || context.recipe.activityId === 'bounce') && <VerticalSphere context={context} worldKey={worldKey} offset={offset} recipe={context.recipe} />}
       {context.recipe.activityId === 'pendulum' && <Pendulum context={context} worldKey={worldKey} anchorX={offset} length={context.recipe.params.lengthM} />}
       <TrajectoryPoints context={context} worldKey={worldKey} offset={offset} color={worldKey === 'earth' ? '#ecf0f2' : '#53b5f3'} dashed={worldKey === 'earth'} />
       <ScaleReference offset={offset} />
@@ -255,6 +290,7 @@ function MarsRidge({ offset, color }: { offset: number; color: string }) { retur
 function RoverRamp({ offset }: { offset: number }) { return <group position={[offset, 0, 0]}><mesh position={[-1.6, 0.18, 0]} rotation={[0, 0, -0.25]}><boxGeometry args={[2.9, 0.16, 1.65]} /><meshStandardMaterial color="#7b7770" roughness={0.68} /></mesh><mesh position={[-3.3, 0.13, 0]}><boxGeometry args={[0.22, 0.4, 1.85]} /><meshStandardMaterial color="#d7a853" metalness={0.6} roughness={0.4} /></mesh><mesh position={[3.7, 0.035, 0]}><boxGeometry args={[4.6, 0.07, 2.3]} /><meshStandardMaterial color="#395968" roughness={0.8} /></mesh><mesh position={[3.7, 0.08, 0]}><boxGeometry args={[0.035, 0.02, 2.3]} /><meshStandardMaterial color="#c2d9e2" emissive="#476473" emissiveIntensity={0.6} /></mesh></group>; }
 function Rover({ context, worldKey, offset }: { context: EngineContext; worldKey: WorldKey; offset: number }) { const root = useRef<THREE.Group>(null!); useFrame(() => { const s = context.runtime.current[worldKey]; if (!root.current || !s) return; root.current.position.set(s.position[0] + offset, s.position[1], 0); root.current.rotation.z = Math.atan2(s.velocity[1], Math.max(0.001, s.velocity[0])); }); return <group ref={root}><mesh position={[0, 0.04, 0]} castShadow><boxGeometry args={[0.75, 0.2, 0.58]} /><meshStandardMaterial color="#e5a642" metalness={0.42} roughness={0.42} /></mesh><mesh position={[-0.06, 0.18, 0]} castShadow><boxGeometry args={[0.48, 0.13, 0.46]} /><meshStandardMaterial color="#d9dce0" metalness={0.48} roughness={0.3} /></mesh><mesh position={[0.18, 0.36, 0]} rotation={[0, 0, 0.2]} castShadow><cylinderGeometry args={[0.03, 0.03, 0.36, 10]} /><meshStandardMaterial color="#959ca1" metalness={0.6} roughness={0.28} /></mesh><mesh position={[0.2, 0.56, 0]} castShadow><sphereGeometry args={[0.1, 16, 12]} /><meshStandardMaterial color="#dbe4ea" metalness={0.38} roughness={0.25} /></mesh>{[-0.26, 0, 0.26].flatMap((x) => [-1, 1].map((side) => <group key={`${x}-${side}`} position={[x, -0.02, side * 0.34]} rotation={[Math.PI / 2, 0, 0]}><mesh castShadow><cylinderGeometry args={[0.17, 0.17, 0.1, 18]} /><meshStandardMaterial color="#25292d" roughness={0.86} /></mesh><mesh><cylinderGeometry args={[0.092, 0.092, 0.105, 16]} /><meshStandardMaterial color="#c3c7c9" metalness={0.62} roughness={0.3} /></mesh></group>))}<mesh position={[-0.12, 0.28, -0.31]} rotation={[0, 0, 0.12]} castShadow><boxGeometry args={[0.34, 0.045, 0.26]} /><meshStandardMaterial color="#25394a" metalness={0.22} roughness={0.28} /></mesh></group>; }
 function Projectile({ context, worldKey, offset, recipe }: { context: EngineContext; worldKey: WorldKey; offset: number; recipe: ExperimentRecipe }) { const mesh = useRef<THREE.Mesh>(null!); const sphere = recipe.activityId === 'projectile' && recipe.params.objectId === 'sphere'; useFrame(() => { const s = context.runtime.current[worldKey]; if (s && mesh.current) mesh.current.position.set(s.position[0] + offset, s.position[1], 0); }); return <mesh ref={mesh} position={[offset, startPosition(recipe)[1], 0]} castShadow>{sphere ? <sphereGeometry args={[0.18, 28, 20]} /> : <boxGeometry args={[0.5, 0.32, 0.32]} />}<meshStandardMaterial color={sphere ? '#d6e5ec' : '#d18a4d'} metalness={0.26} roughness={sphere ? 0.23 : 0.63} /></mesh>; }
+function VerticalSphere({ context, worldKey, offset, recipe }: { context: EngineContext; worldKey: WorldKey; offset: number; recipe: Extract<ExperimentRecipe, {activityId: 'free-fall' | 'bounce'}> }) { const mesh = useRef<THREE.Mesh>(null!); useFrame(() => { const s = context.runtime.current[worldKey]; if (s && mesh.current) mesh.current.position.set(s.position[0] + offset, s.position[1], 0); }); return <mesh ref={mesh} position={[offset, startPosition(recipe)[1], 0]} castShadow><sphereGeometry args={[0.18, 28, 20]} /><meshStandardMaterial color={recipe.activityId === 'bounce' ? '#e7ad54' : '#d6e5ec'} metalness={0.26} roughness={0.25} /></mesh>; }
 function Pendulum({ context, worldKey, anchorX, length }: { context: EngineContext; worldKey: WorldKey; anchorX: number; length: number }) { const root = useRef<THREE.Group>(null!); useFrame(() => { const s = context.runtime.current[worldKey]; if (s && root.current) root.current.rotation.z = -(s.angle ?? 0); }); return <group ref={root} position={[anchorX, 4.2, 0]}><mesh position={[0, -length / 2, 0]} castShadow><cylinderGeometry args={[0.018, 0.018, length, 8]} /><meshStandardMaterial color="#d8c89e" metalness={0.5} roughness={0.35} /></mesh><mesh position={[0, -length, 0]} castShadow><sphereGeometry args={[0.16, 24, 16]} /><meshStandardMaterial color="#c6d0d7" metalness={0.7} roughness={0.24} /></mesh><mesh position={[0, 0.05, 0]}><sphereGeometry args={[0.09, 12, 10]} /><meshStandardMaterial color="#f2c76c" metalness={0.55} /></mesh></group>; }
 function WindObject({ objectId, offset }: { objectId: 'sphere' | 'plate'; offset: number }) { return <group position={[offset, 1.35, 0]}>{Array.from({ length: 13 }, (_, i) => <mesh key={i} position={[-3.3 + (i % 5) * 0.35, -0.75 + Math.floor(i / 5) * 0.68, 0]}><boxGeometry args={[3.5, 0.012, 0.012]} /><meshBasicMaterial color="#9ed8ef" transparent opacity={0.48} /></mesh>)}<mesh castShadow>{objectId === 'sphere' ? <sphereGeometry args={[0.36, 24, 18]} /> : <boxGeometry args={[0.22, 0.9, 0.9]} />}<meshStandardMaterial color="#dce8ec" metalness={0.35} roughness={0.28} /></mesh></group>; }
 function TrajectoryPoints({ context, worldKey, offset, color, dashed }: { context: EngineContext; worldKey: WorldKey; offset: number; color: string; dashed: boolean }) {
@@ -314,7 +350,15 @@ function SimulationEngine({ context }: { context: EngineContext }) {
       const intervals = runtime.crossings.slice(2).map((time, i) => time - runtime.crossings[i]);
       if (intervals.length) metrics.periodS = intervals.reduce((sum, period) => sum + period, 0) / intervals.length;
       termination = runtime.crossings.length >= 7 ? 'cycles' : 'timeout';
-    } else if (runtime.contact) {
+    } else if (recipe.activityId === 'free-fall' && runtime.contact) {
+      metrics.flightTimeS = runtime.elapsedS;
+      metrics.impactSpeedMps = Math.hypot(...runtime.velocity);
+    } else if (recipe.activityId === 'bounce' && runtime.firstImpactTimeS !== null && runtime.firstImpactSpeedMps !== null) {
+      metrics.flightTimeS = runtime.firstImpactTimeS;
+      metrics.impactSpeedMps = runtime.firstImpactSpeedMps;
+      metrics.reboundHeightM = Math.max(0, runtime.reboundMaxHeight);
+      metrics.energyRetentionPct = recipe.params.heightM > 0 ? metrics.reboundHeightM / recipe.params.heightM * 100 : 0;
+    } else if (recipe.activityId !== 'bounce' && runtime.contact) {
       metrics.flightTimeS = runtime.elapsedS;
       metrics.rangeM = Math.max(0, runtime.position[0]);
       metrics.peakHeightM = Math.max(0, runtime.maxHeight);
@@ -389,18 +433,54 @@ function SimulationEngine({ context }: { context: EngineContext }) {
       }
       if (runtime.tick % 6 === 0 || immediate) runtime.trajectory.push(reading.position);
       const contactCenterHeight = contactHeight(context.recipe);
-      const madeContact = context.recipe.activityId !== 'pendulum' && context.recipe.activityId !== 'wind-tunnel' && before.position[1] > contactCenterHeight && reading.position[1] <= contactCenterHeight + 0.003 && runtime.tick > 1;
-      if (madeContact && !runtime.contact) {
+      const isBounce = context.recipe.activityId === 'bounce';
+      const nearSurface = reading.position[1] <= contactCenterHeight + (isBounce ? 0.0001 : 0.003);
+      const velocityReversed = before.velocity[1] < 0 && reading.velocity[1] >= 0;
+      const madeContact = context.recipe.activityId !== 'pendulum' && context.recipe.activityId !== 'wind-tunnel' && before.position[1] > contactCenterHeight && (nearSurface || (isBounce && velocityReversed)) && runtime.tick > 1;
+      if (isBounce && runtime.impactCount === 1 && reading.position[1] > contactCenterHeight + 0.00001 && reading.velocity[1] > 0) runtime.reboundStarted = true;
+      const isFirstBounceImpact = isBounce && runtime.impactCount === 0;
+      const isSecondBounceImpact = isBounce && runtime.impactCount === 1 && runtime.reboundStarted;
+      if (madeContact && (isBounce ? isFirstBounceImpact || isSecondBounceImpact : !runtime.contact)) {
       const world = key === 'earth' ? compareWorld : context.recipe.worldId;
       const gravity = WORLDS[world].gravityMps2;
-        const fraction = Math.max(0, Math.min(1, (before.position[1] - contactCenterHeight) / Math.max(before.position[1] - reading.position[1], Number.EPSILON)));
+        const distance = before.position[1] - contactCenterHeight;
+        const ballisticFraction = (before.velocity[1] + Math.sqrt(before.velocity[1] ** 2 + 2 * gravity * distance)) / gravity / FIXED_DT;
+        const fraction = Math.max(0, Math.min(1, isBounce || !nearSurface ? ballisticFraction : distance / Math.max(before.position[1] - reading.position[1], Number.EPSILON)));
+        const impactTime = elapsed.current - FIXED_DT + FIXED_DT * fraction;
+        const incoming = uncollidedVelocity(context.recipe, world, before.velocity, FIXED_DT * fraction);
+        const incomingVelocity = incoming[1];
+        if (isBounce && runtime.impactCount === 0) {
+          runtime.impactCount = 1;
+          runtime.firstImpactTimeS = impactTime;
+          runtime.firstImpactTick = runtime.tick;
+          runtime.firstImpactSpeedMps = Math.abs(incomingVelocity);
+          runtime.reboundMaxHeight = 0;
+          if (context.recipe.activityId === 'bounce' && context.recipe.params.restitution === 0) {
+            runtime.contact = true;
+            runtime.elapsedS = impactTime;
+            runtime.position = [before.position[0] + (reading.position[0] - before.position[0]) * fraction, contactCenterHeight, 0];
+            runtime.velocity = [0, 0, 0];
+            api.freeze(runtime.position);
+          }
+        } else {
+          runtime.impactCount += 1;
+          runtime.contact = true;
+          runtime.velocity = incoming;
+          runtime.elapsedS = impactTime;
+          runtime.position[0] = before.position[0] + (reading.position[0] - before.position[0]) * fraction;
+          runtime.position[1] = contactCenterHeight;
+          api.freeze(runtime.position);
+        }
+      }
+      if (isBounce && runtime.impactCount === 1 && !runtime.reboundStarted && runtime.firstImpactTick !== null && runtime.tick > runtime.firstImpactTick + 1 && nearSurface && reading.velocity[1] <= 0) {
+        runtime.impactCount = 2;
         runtime.contact = true;
-        runtime.velocity = [before.velocity[0] + (reading.velocity[0] - before.velocity[0]) * fraction, before.velocity[1] - gravity * FIXED_DT * fraction, before.velocity[2] + (reading.velocity[2] - before.velocity[2]) * fraction];
-        runtime.elapsedS = elapsed.current - FIXED_DT + FIXED_DT * fraction;
-        runtime.position[0] = before.position[0] + (reading.position[0] - before.position[0]) * fraction;
-        runtime.position[1] = contactCenterHeight;
+        runtime.elapsedS = elapsed.current;
+        runtime.position = [reading.position[0], contactCenterHeight, 0];
+        runtime.velocity = [0, 0, 0];
         api.freeze(runtime.position);
       }
+      if (isBounce && runtime.impactCount === 1 && !runtime.contact) runtime.reboundMaxHeight = Math.max(runtime.reboundMaxHeight, reading.position[1] - contactCenterHeight);
       const hasEnded = runtime.contact || runtime.elapsedS >= duration || (recipeIsPendulum(context.recipe) && runtime.crossings.length >= 7);
       publish(key, immediate || hasEnded);
       if (hasEnded) completeOne(key);
@@ -459,7 +539,17 @@ function NumericFallback({ recipe }: { recipe: ExperimentRecipe }) {
   const world = WORLDS[recipe.worldId];
   let result: string[] = [];
   let label = 'Reference values';
-  if (recipe.activityId === 'wind-tunnel') {
+  if (recipe.activityId === 'free-fall' || recipe.activityId === 'bounce') {
+    const state = runToCompletion(recipe);
+    const summary = summarizePhysics(state, recipe, 0, '00000000-0000-4000-8000-000000000001');
+    label = state.termination === 'timeout' ? 'Fixed-step numerical estimate · timed out' : 'Fixed-step numerical estimate · idealized sphere';
+    result = Object.entries(summary.metrics).map(([key, value]) => {
+      const labels: Record<string, string> = { flightTimeS: 'First impact time', impactSpeedMps: 'First impact speed', reboundHeightM: 'First rebound height', energyRetentionPct: 'Energy retained' };
+      const units: Record<string, string> = { flightTimeS: 's', impactSpeedMps: 'm/s', reboundHeightM: 'm', energyRetentionPct: '%' };
+      return `${labels[key] ?? key} ${(value as number).toFixed(key === 'energyRetentionPct' ? 1 : 3)} ${units[key] ?? ''}`;
+    });
+    result.push(`Model time ${summary.elapsedS.toFixed(3)} s`);
+  } else if (recipe.activityId === 'wind-tunnel') {
     const coefficient = recipe.params.objectId === 'sphere' ? 0.47 : 1.28;
     const pressure = 0.5 * world.gasDensityKgM3 * recipe.params.windSpeedMps ** 2;
     result = [`Dynamic pressure ${pressure.toFixed(2)} Pa`, `Drag force ${(pressure * coefficient * recipe.params.areaM2).toFixed(3)} N`];
@@ -510,13 +600,16 @@ export const SimulationView = forwardRef<SimulationHandle, SimulationViewProps>(
   const comparisonWorld: WorldId = activeWorld === 'earth' ? 'moon' : 'earth';
   const renderDensity = props.quality === 'high' ? [1, 1.5] as [number, number] : [1, 1] as [number, number];
   const activePreset = WORLDS[activeWorld].visualPreset;
+  const verticalExperiment = props.recipe.activityId === 'free-fall' || props.recipe.activityId === 'bounce';
+  const verticalHeight = props.recipe.activityId === 'free-fall' || props.recipe.activityId === 'bounce' ? props.recipe.params.heightM : 0;
+  const verticalCamera = verticalExperiment ? [1.5, verticalHeight / 2 + 4, 20] as [number, number, number] : null;
   const scene = (
-    <Canvas shadows={props.quality === 'high'} dpr={renderDensity} camera={{ position: props.comparison ? [0, 10.5, 34] : props.recipe.activityId === 'rover-ramp' ? [3.8, 3.4, 8.5] : [3.8, 5.1, 10.5], fov: 38, near: 0.1, far: 120 }} gl={{ antialias: props.quality === 'high', powerPreference: 'high-performance' }} fallback={<p>WebGL is required for the 3D view. Enable WebGL or use a compatible browser.</p>}>
+    <Canvas shadows={props.quality === 'high'} dpr={renderDensity} camera={{ position: props.comparison ? [0, 9, 42] : verticalCamera ?? (props.recipe.activityId === 'rover-ramp' ? [3.8, 3.4, 8.5] : [3.8, 5.1, 10.5]), fov: 38, near: 0.1, far: 120 }} gl={{ antialias: props.quality === 'high', powerPreference: 'high-performance' }} fallback={<p>WebGL is required for the 3D view. Enable WebGL or use a compatible browser.</p>}>
       <color attach="background" args={[activePreset.sky]} />
-      {activeWorld !== 'moon' && <fog attach="fog" args={[activePreset.sky, 24, 65]} />}
-      {activeWorld === 'moon' && <Stars radius={65} depth={20} count={900} factor={2} saturation={0} fade speed={0} />}
-      <ambientLight intensity={activeWorld === 'moon' ? 0.18 : 0.55} />
-      <directionalLight position={[3, 13, 8]} intensity={activeWorld === 'moon' ? 2.5 : 1.8} castShadow shadow-mapSize={[1024, 1024]} />
+      {WORLDS[activeWorld].gasDensityKgM3 > 0 && <fog attach="fog" args={[activePreset.sky, 24, 65]} />}
+      {WORLDS[activeWorld].gasDensityKgM3 === 0 && <Stars radius={65} depth={20} count={900} factor={2} saturation={0} fade speed={0} />}
+      <ambientLight intensity={WORLDS[activeWorld].gasDensityKgM3 === 0 ? 0.18 : 0.55} />
+      <directionalLight position={[3, 13, 8]} intensity={WORLDS[activeWorld].gasDensityKgM3 === 0 ? 2.5 : 1.8} castShadow shadow-mapSize={[1024, 1024]} />
       {props.comparison ? <>
         <WorldPhysics context={context} worldKey="active" worldId={activeWorld} offset={-7} />
         <WorldPhysics context={context} worldKey="earth" worldId={comparisonWorld} offset={7} />
@@ -526,7 +619,7 @@ export const SimulationView = forwardRef<SimulationHandle, SimulationViewProps>(
         <WorldPhysics context={context} worldKey="active" worldId={activeWorld} offset={0} />
         <WorldScene context={context} worldKey="active" worldId={activeWorld} offset={0} />
       </>}
-      <OrbitControls ref={controls as never} makeDefault enableDamping dampingFactor={0.08} target={props.comparison ? [0, 1.4, 0] : [0, props.recipe.activityId === 'pendulum' ? 2.2 : 0.8, 0]} minDistance={3} maxDistance={44} maxPolarAngle={Math.PI * 0.49} />
+      <OrbitControls ref={controls as never} makeDefault enableDamping dampingFactor={0.08} target={props.comparison ? [0, 4, 0] : verticalExperiment ? [0, verticalHeight / 2, 0] : [0, props.recipe.activityId === 'pendulum' ? 2.2 : 0.8, 0]} minDistance={3} maxDistance={44} maxPolarAngle={Math.PI * 0.49} />
       <CameraTracker controls={controls} context={context} activeOffset={props.comparison ? -7 : 0} follow={follow} />
       <SimulationEngine context={context} />
     </Canvas>

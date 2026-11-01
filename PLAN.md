@@ -51,7 +51,7 @@ No new accounts, purchases, provisioning, deployments, or agents started by this
 
 | ID | Feature | Release gate |
 | --- | --- | --- |
-| F01 | Earth, Moon, Mars presets | World switches change environment and scenery |
+| F01 | Earth, Moon, Mars, Mercury, Venus, Titan presets | World switches change environment and scenery |
 | F02 | Rover ramp | Controlled launch; measured airtime and range |
 | F03 | Projectile | Sphere/brick; speed, angle, mass, release height |
 | F04 | Pendulum | Length, bob mass, initial angle; measured period |
@@ -62,6 +62,8 @@ No new accounts, purchases, provisioning, deployments, or agents started by this
 | F09 | AI commands and explanation | Validated setup; explanation uses measured summary |
 | F10 | Local recovery and cloud save | Refresh restores draft; owner can reload saved recipe |
 | F11 | Public deployment | Preview works; production passes release gates |
+| F12 | Free fall | Measured time/speed match vacuum and reference-drag equations |
+| F13 | First rebound | Restitution changes measured rebound height and retained energy |
 
 P1: share links, voice, Titan/Venus, screenshots, CSV export, challenge mode, balloons/parachutes.
 P2: vehicle drivetrains, prepared engine cutaways, thermal/fluid models, workshop assemblies, custom worlds.
@@ -84,7 +86,7 @@ If behind: cut P1, visual effects, extra assets, and AI convenience. Preserve wo
 ## Definition of done
 
 - Start experiment within two clicks from `/`.
-- Four launch activities work on Earth, Moon, Mars.
+- Six activities work across six reference worlds.
 - Physics matches independent reference cases within documented tolerance.
 - Comparison preserves initial conditions and simulation time.
 - Reset restores exact recipe; parameter edits invalidate stale results.
@@ -107,3 +109,9 @@ Report shipped feature IDs, deferred IDs, tests, deployment URL, and known model
 Local build: F01–F08 and local F10 implemented. F09/cloud F10 adapters and migrations implemented; external validation awaits live Supabase schema/authentication setup. F11 has a production deployment at [planet-lab-drab.vercel.app](https://planet-lab-drab.vercel.app); full cloud release gates remain open. P1 remains deferred.
 
 Evidence, known model limits, responsive review, and remaining gates: [verification](docs/verification.md). Run/setup: [README](README.md).
+
+## Expanded catalog — November 1, 2026
+
+Mercury, Venus and Titan extend the original reference worlds. Free-fall and first-rebound activities extend the four original experiments. Physics model 1.1 adds stable quadratic-drag motion, correct solver restitution and honest timeout metrics. Independent equations and a converged RK4 launch reference are documented in [physics audit](docs/physics-audit.md); world constants and scope limits are documented in [world reference states](docs/world-reference-states.md).
+
+The third additive Supabase migration extends accepted recipes. Live cloud schema/authentication setup remains a separate gate.

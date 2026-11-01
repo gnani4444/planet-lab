@@ -5,7 +5,7 @@ The local lab works without cloud credentials. Local credentials and Vercel prod
 ## Supabase
 
 1. Create or select a disposable development Supabase project. Enable anonymous sign-in in Authentication, and set the anonymous-user abuse controls/CAPTCHA before opening the app publicly.
-2. Apply both SQL files in `supabase/migrations/` in filename order: `202611010001_planet_lab_core.sql`, then `202611010002_recipe_validation_permissions.sql`. These create owner-scoped `experiments`, private `ai_usage`, RLS policies, and privileged quota reservation/finalization functions.
+2. Apply all SQL files in `supabase/migrations/` in filename order: `202611010001_planet_lab_core.sql`, `202611010002_recipe_validation_permissions.sql`, then `202611010003_expanded_catalog.sql`. These create owner-scoped `experiments`, private `ai_usage`, RLS policies, and privileged quota reservation/finalization functions.
 3. Add the project's URL, publishable key, and secret key to the local environment using `.env.example` as the name list. The publishable key is browser-safe because table access is restricted by RLS. Keep `SUPABASE_SECRET_KEY` server-only.
 4. Restart the Next.js server after changing environment values. The app creates an anonymous session only when the user first saves or asks the assistant; it reuses the browser session after that.
 
@@ -23,7 +23,7 @@ The assistant uses Responses Structured Outputs with a schema generated from the
 
 ## External release checks
 
-Before claiming cloud or AI availability, configure a non-production Supabase project and OpenAI key, apply both migrations, verify anonymous sign-in, and test save/reload/delete under two separate users. Exercise quota concurrency and duplicate request IDs against Postgres. Verify a real Responses call, token recording, timeout behavior, and the deployed environment's secrets. A read-only Supabase connection check passed on 2026-11-01, but the expected tables and RPCs were absent from its API schema and anonymous sign-in was disabled. Public simulator deployment is verified; provider calls and live database behavior remain unverified.
+Before claiming cloud or AI availability, configure a non-production Supabase project and OpenAI key, apply all migrations, verify anonymous sign-in, and test save/reload/delete under two separate users. Exercise quota concurrency and duplicate request IDs against Postgres. Verify a real Responses call, token recording, timeout behavior, and the deployed environment's secrets. A read-only Supabase connection check passed on 2026-11-01, but the expected tables and RPCs were absent from its API schema and anonymous sign-in was disabled. Public simulator deployment is verified; provider calls and live database behavior remain unverified.
 
 Official references: [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [Responses input-token counts](https://developers.openai.com/api/reference/resources/responses/subresources/input_tokens/methods/count), [Supabase anonymous sign-ins](https://supabase.com/docs/guides/auth/auth-anonymous), [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys).
 
@@ -31,4 +31,8 @@ Official references: [OpenAI Structured Outputs](https://developers.openai.com/a
 
 The second migration grants authenticated writers and the backend role permission to execute the pure recipe validators used by CHECK constraints. It changes no ownership policy or privileged quota permission. Apply it even if the first migration was applied earlier.
 
-`supabase/tests/recipe_permissions.sql` verifies a valid owner save, invalid recipe rejection, owner isolation and denial of direct quota reservation by authenticated users. Run it only in a disposable test database after both migrations; its transaction rolls back all fixtures. These checks were executed with PGlite 0.5.14 and a local Supabase Auth schema stub. Live Supabase Auth and concurrent server sessions remain separate checks.
+`supabase/tests/recipe_permissions.sql` verifies a valid owner save, invalid recipe rejection, owner isolation and denial of direct quota reservation by authenticated users. Run it only in a disposable test database after all migrations; its transaction rolls back all fixtures. These checks were executed with PGlite 0.5.14 and a local Supabase Auth schema stub. Live Supabase Auth and concurrent server sessions remain separate checks.
+
+## Expanded catalog
+
+The third migration accepts Mercury, Venus and Titan plus free-fall and bounce recipes while preserving the original recipe format and owner policies. `supabase/tests/expanded_catalog.sql` verifies all new world/activity combinations and invalid bounds in a rollback-only fixture transaction. Local SQL checks passed; the live Supabase migrations remain pending.

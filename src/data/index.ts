@@ -29,6 +29,27 @@ export const WORLDS: Record<WorldId, WorldDefinition> = {
     conditions: 'Rounded mean surface gravity and representative near-surface CO₂ atmosphere. Pressure and density vary with season, elevation, and weather.',
     visualPreset: { ground: '#8b4a32', sky: '#d9a17f', rock: '#b96946' },
   },
+  mercury: {
+    id: 'mercury', name: 'Mercury', gravityMps2: 3.70, gasDensityKgM3: 0,
+    referenceTemperatureK: 440, referencePressurePa: 0,
+    sourceUrls: ['https://nssdc.gsfc.nasa.gov/planetary/factsheet/mercuryfact.html', 'https://science.nasa.gov/mercury/facts/'],
+    conditions: 'Near-vacuum approximation. 440 K is the NASA fact-sheet black-body temperature reference, not a uniform ground temperature; day and night surfaces vary widely.',
+    visualPreset: { ground: '#89745e', sky: '#17151a', rock: '#b7a18a' },
+  },
+  venus: {
+    id: 'venus', name: 'Venus', gravityMps2: 8.87, gasDensityKgM3: 65,
+    referenceTemperatureK: 730, referencePressurePa: 9_200_000,
+    sourceUrls: ['https://nssdc.gsfc.nasa.gov/planetary/factsheet/venusfact.html', 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/ves.html', 'https://science.nasa.gov/venus/venus-facts/'],
+    conditions: 'Approximate surface reference for a dense, hot CO₂ atmosphere. The model uses constant-Cd quadratic drag; it has no heat or material-survival simulation, CFD, or buoyancy.',
+    visualPreset: { ground: '#9c6241', sky: '#d98b58', rock: '#c77a4b' },
+  },
+  titan: {
+    id: 'titan', name: 'Titan', gravityMps2: 1.35, gasDensityKgM3: 5.43,
+    referenceTemperatureK: 94, referencePressurePa: 150_000,
+    sourceUrls: ['https://science.nasa.gov/saturn/moons/titan/facts/', 'https://science.nasa.gov/mission/voyager/fact-sheet/', 'https://ntrs.nasa.gov/api/citations/20220016292/downloads/TM-20220016292.pdf'],
+    conditions: 'Approximate surface reference for a nitrogen–methane atmosphere. Constant-Cd quadratic drag only; buoyancy, thermal effects, and material survival are not modelled.',
+    visualPreset: { ground: '#695342', sky: '#a9673d', rock: '#98704f' },
+  },
 };
 
 const commonFlightAssumptions = [
@@ -72,5 +93,24 @@ export const ACTIVITIES: Record<ActivityId, ActivityDefinition> = {
       { key: 'areaM2', label: 'Reference area', unit: 'm²', min: 0.01, max: 1, step: 0.01 },
     ], defaults: DEFAULT_PARAMS['wind-tunnel'], metricIds: ['dragN', 'dynamicPressurePa'], durationLimitS: 1,
     assumptions: ['Steady incompressible reference flow; object orientation is fixed.', 'Drag coefficient is a curated approximation: sphere 0.47, plate 1.28. Flow streaks are illustrative, not a pressure field.'], assetIds: [],
+  },
+  'free-fall': {
+    id: 'free-fall', name: 'Free fall', description: 'Drop a test mass and measure its fall through a world’s atmosphere.',
+    parameters: [
+      { key: 'heightM', label: 'Drop height', unit: 'm', min: 0.5, max: 10, step: 0.1 },
+      { key: 'massKg', label: 'Mass', unit: 'kg', min: 0.1, max: 20, step: 0.1 },
+    ], defaults: DEFAULT_PARAMS['free-fall'], metricIds: ['flightTimeS', 'impactSpeedMps'],
+    durationLimitS: 30,
+    assumptions: ['Object is released from rest and falls vertically to level ground.', 'Mass is an ideal sphere for drag; drag uses a fixed coefficient. Dense-atmosphere drag uses constant-Cd quadratic drag, with no CFD, buoyancy, thermal effects, or material-survival simulation.'], assetIds: [],
+  },
+  bounce: {
+    id: 'bounce', name: 'Bounce', description: 'Drop a sphere and compare its first impact with its first rebound.',
+    parameters: [
+      { key: 'heightM', label: 'Drop height', unit: 'm', min: 0.5, max: 5, step: 0.1 },
+      { key: 'restitution', label: 'Restitution', unit: '', min: 0, max: 0.95, step: 0.01 },
+      { key: 'massKg', label: 'Mass', unit: 'kg', min: 0.1, max: 10, step: 0.1 },
+    ], defaults: DEFAULT_PARAMS.bounce, metricIds: ['flightTimeS', 'impactSpeedMps', 'reboundHeightM', 'energyRetentionPct'],
+    durationLimitS: 30,
+    assumptions: ['Ideal vertical sphere with no drag; reports the first impact and first rebound only.', 'For an ideal rebound, expected rebound height is h′ = e²h, where e is the coefficient of restitution. Mass does not change this ideal result.'], assetIds: [],
   },
 };

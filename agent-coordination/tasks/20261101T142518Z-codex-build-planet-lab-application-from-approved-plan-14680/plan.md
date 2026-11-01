@@ -16,3 +16,10 @@
 ## Ownership
 Coordinator owns root files, src/domain, src/state, src/app pages/layout, integration tests and docs.
 Agents own the lane paths from docs/planet-lab-agents.md. Coordinator manages this shared task record.
+
+## Expanded catalog and physics review
+- Add Mercury, Venus and Titan reference worlds with primary sources and clear model limits.
+- Add measured free-fall and first-rebound experiments, bounded inputs and Earth comparison.
+- Audit actual Rapier calculations against independent SI equations; fix dense-atmosphere drag and timeout labels.
+- Extend strict client/server/SQL recipe contracts compatibly; preserve old recipes.
+- Prove numerical references, actual browser physics, responsive controls and production assets; redeploy Vercel and verify public access.

@@ -16,8 +16,8 @@ import { deleteExperiment, listExperiments, loadExperiment, saveExperiment } fro
 type LabShellProps = { children: ReactNode; onResetCamera?: () => void };
 type MobileTab = 'setup' | 'results' | 'ask';
 type AssistantMessage = { kind: 'user' | 'assistant' | 'error'; text: string };
-const activityOrder: ActivityId[] = ['rover-ramp', 'projectile', 'pendulum', 'wind-tunnel'];
-const worldOrder: WorldId[] = ['earth', 'moon', 'mars'];
+const activityOrder: ActivityId[] = ['rover-ramp', 'projectile', 'pendulum', 'wind-tunnel', 'free-fall', 'bounce'];
+const worldOrder: WorldId[] = ['earth', 'moon', 'mars', 'mercury', 'venus', 'titan'];
 
 function ActivitySketch({ activity, selected }: { activity: ActivityId; selected: boolean }) {
   const stroke = selected ? '#dfeef9' : '#999';
@@ -27,6 +27,8 @@ function ActivitySketch({ activity, selected }: { activity: ActivityId; selected
     {activity === 'projectile' && <g stroke={stroke} strokeWidth="1.5" fill="none"><path d="M13 38Q40 2 74 24" strokeDasharray="3 4"/><circle cx="49" cy="16" r="6" fill="#343a3f"/><path d="M12 38h63"/></g>}
     {activity === 'pendulum' && <g stroke={stroke} strokeWidth="1.5" fill="none"><path d="M25 10h38M44 10v23"/><path d="M44 10 58 31" stroke="#b7cddd"/><circle cx="58" cy="34" r="6" fill="#42515a"/><circle cx="44" cy="10" r="2" fill="#ddd"/><path d="M37 16a11 11 0 0 1 17 1" stroke="#6994b2" strokeDasharray="2 3"/></g>}
     {activity === 'wind-tunnel' && <g stroke={stroke} strokeWidth="1.5" fill="none"><path d="M11 14h46a8 8 0 0 1 0 16H33m-22-8h14m-14 8h13"/><circle cx="63" cy="22" r="7" fill="#3c4449"/><path d="M63 15v14m-7-7h14" stroke="#b9c3c7"/></g>}
+    {activity === 'free-fall' && <g stroke={stroke} strokeWidth="1.5" fill="none"><path d="M24 8v27m-4-4 4 5 4-5M38 9h23"/><circle cx="50" cy="16" r="5" fill="#42515a"/><path d="M50 24v9m-4-4 4 5 4-5" strokeDasharray="2 2"/></g>}
+    {activity === 'bounce' && <g stroke={stroke} strokeWidth="1.5" fill="none"><path d="M20 10v24q12 11 24-10t24 12" strokeDasharray="3 3"/><circle cx="20" cy="10" r="5" fill="#42515a"/><circle cx="51" cy="22" r="4" fill="#30363a"/><path d="M13 39h63"/></g>}
   </svg>;
 }
 
@@ -49,6 +51,7 @@ function chartY(recipe: ExperimentRecipe, sample: TelemetrySample) {
 function chartLabel(recipe: ExperimentRecipe) {
   if (recipe.activityId === 'pendulum') return { title: 'Angle over time', unit: '°' };
   if (recipe.activityId === 'wind-tunnel') return { title: 'Calculated reference drag', unit: 'N' };
+  if (recipe.activityId === 'free-fall' || recipe.activityId === 'bounce') return { title: 'Height over time', unit: 'm' };
   return { title: 'Measured trajectory', unit: 'm' };
 }
 type ChartPoint = {x:number;y:number};
@@ -244,7 +247,7 @@ function LabHeader({onSave,onSettings}:{onSave:()=>void;onSettings:()=>void}) {
   return <header className="lab-header"><Link className="brand" href="/" aria-label="Planet Lab home"><span className="brand-mark"><svg viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="7"/><ellipse cx="15" cy="15" rx="13" ry="5.6" transform="rotate(-28 15 15)"/><circle cx="25" cy="8" r="1.5" className="orbit-dot"/></svg></span><h1 className="brand-name">Planet <b>Lab</b><small>Field workbench</small></h1></Link>
     <span className="header-divider" aria-hidden="true"/><div className="header-context"><strong>{activity.name}</strong></div>
     <div className="header-world"><label htmlFor="world-select"><Globe2 size={15}/><span>World</span></label><div className="world-select-wrap"><select id="world-select" value={recipe.worldId} onChange={e=>selectWorld(e.target.value as WorldId)}>{worldOrder.map(id=><option key={id} value={id}>{WORLDS[id].name}</option>)}</select><ChevronDown size={14}/></div><span className="world-conditions">{world.gravityMps2.toFixed(2)} m/s²</span></div>
-    <div className="header-actions"><button className={`compare-button${comparison?' is-active':''}`} aria-label={comparison?'Comparing with Earth':'Compare with Earth'} aria-pressed={comparison} onClick={()=>setComparison(!comparison)} disabled={recipe.worldId==='earth'} title={recipe.worldId==='earth'?'Choose Moon or Mars to compare with Earth':undefined}><GitCompareArrows size={16} aria-hidden="true"/><span>{comparison?'Comparing Earth':'Compare Earth'}</span></button><button className="header-icon-button" onClick={onSave} aria-label="Saved experiments"><Save size={16}/></button><button className="header-icon-button" onClick={onSettings} aria-label="Settings"><Settings2 size={16}/></button><button className="mobile-menu-button" aria-label="Open activity selection" onClick={()=>setMenu(!menu)}><Menu size={18}/></button></div>
+    <div className="header-actions"><button className={`compare-button${comparison?' is-active':''}`} aria-label={comparison?'Comparing with Earth':'Compare with Earth'} aria-pressed={comparison} onClick={()=>setComparison(!comparison)} disabled={recipe.worldId==='earth'} title={recipe.worldId==='earth'?'Choose another world to compare with Earth':undefined}><GitCompareArrows size={16} aria-hidden="true"/><span>{comparison?'Comparing Earth':'Compare Earth'}</span></button><button className="header-icon-button" onClick={onSave} aria-label="Saved experiments"><Save size={16}/></button><button className="header-icon-button" onClick={onSettings} aria-label="Settings"><Settings2 size={16}/></button><button className="mobile-menu-button" aria-label="Open activity selection" onClick={()=>setMenu(!menu)}><Menu size={18}/></button></div>
     {menu&&<div className="mobile-activity-menu"><ActivityPalette compact active={recipe.activityId} onSelect={id=>{useLabStore.getState().selectActivity(id);setMenu(false)}}/></div>}
   </header>;
 }

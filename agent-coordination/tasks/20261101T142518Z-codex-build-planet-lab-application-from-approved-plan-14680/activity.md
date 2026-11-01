@@ -120,3 +120,27 @@ Public 404 traced to Vercel Other framework serving public only. Added explicit 
 Local app runs on port 3000. Vercel production verified: physics, Earth comparison, mobile layout, assets and secret scans pass. Cloud setup pending.
 
 **Next action:** Apply Supabase migrations and enable anonymous sign-in.
+
+## 2026-11-01T16:08:36Z · codex · in-progress
+
+Takeover from unassigned. Agent continuation requested. Previous checkpoint by codex: Local app runs on port 3000. Vercel production verified: physics, Earth comparison, mobile layout, assets and secret scans pass. Cloud setup pending.
+
+**Next action:** Apply Supabase migrations and enable anonymous sign-in.
+
+## 2026-11-01T16:10:05Z · codex · in-progress
+
+Expanding to six worlds and six activities; independent physics audit and bounded simulation/catalog agents assigned.
+
+**Next action:** Integrate new activities, validate physics references and redeploy.
+
+## 2026-11-01T16:14:21Z · codex · in-progress
+
+Six-world catalog, controls and strict recipe expansion integrated. Additive SQL migration and owner-isolation/catalog regressions pass locally.
+
+**Next action:** Finish numerical fixes, then validate actual browser physics.
+
+## 2026-11-01T16:24:33Z · codex · in-progress
+
+Six worlds and six activities ready. Physics fixes pass 45 unit and 19 browser tests; SQL expansion and secret scan pass.
+
+**Next action:** Deploy expanded catalog to Vercel and verify public experiments.

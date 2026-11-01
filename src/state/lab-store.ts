@@ -29,7 +29,7 @@ export const useLabStore = create<LabState>((set, get) => ({
   pause() {set(s => ({status: s.status === 'running' ? 'paused' : s.status, transport: {action: 'pause', sequence: s.transport.sequence + 1}}));},
   reset() {set(s => ({revision: s.revision + 1, status: 'ready', ...cleared, transport: {action: 'reset', sequence: s.transport.sequence + 1}}));},
   step() {if (get().status === 'completed' || get().status === 'error') return; set(s => ({status: 'paused', transport: {action: 'step', sequence: s.transport.sequence + 1}}));},
-  setComparison(value) {if(value && get().recipe.worldId === 'earth') {set({error: 'Choose Moon or Mars to compare with Earth.'}); return;} set(s => ({comparison: value, revision: s.revision + 1, status: 'ready', ...cleared, transport: {action: 'reset', sequence: s.transport.sequence + 1}}));},
+  setComparison(value) {if(value && get().recipe.worldId === 'earth') {set({error: 'Choose another world to compare with Earth.'}); return;} set(s => ({comparison: value, revision: s.revision + 1, status: 'ready', ...cleared, transport: {action: 'reset', sequence: s.transport.sequence + 1}}));},
   acceptSample(sample, world, revision) {const s = get(); if(!['running', 'paused'].includes(s.status) || revision !== s.revision || !Number.isFinite(sample.timeS) || (world !== s.recipe.worldId && !(s.comparison && world === 'earth'))) return; set({samples: {...s.samples, [world]: [...(s.samples[world] ?? []), sample].slice(-600)}});},
   acceptSummary(input) {
     const parsed = runSummarySchema.safeParse(input); if (!parsed.success) return;

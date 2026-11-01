@@ -90,3 +90,15 @@ Next: apply both SQL migrations in filename order, enable anonymous sign-in, the
 - `/api/assistant` GET returned HTTP 200; this checks configuration presence only. A POST without authentication returned HTTP 401. No paid provider request was sent.
 - Both the local browser bundle and fetched production JavaScript were scanned for the configured OpenAI and Supabase secret values; no matches were found.
 - Production screenshot: `planet-lab-production.png` in the chat's visualization artifacts. Cloud save and AI remain dependent on the Supabase setup described above. No preview deployment or live cloud release is claimed.
+
+## Expanded worlds, activities and physics — 2026-11-01
+
+- Six worlds: Earth, Moon, Mars, Mercury, Venus and Titan. The added reference states are sourced in `docs/world-reference-states.md`.
+- Six activities: rover, projectile, pendulum, wind tunnel, free fall and first rebound. Strict recipes, controls, local recovery, Earth comparisons, summaries and assistant schemas include both new activities.
+- Physics model `planet-lab-local-physics-1.1`: shared symmetric gravity/exact quadratic-drag motion avoids velocity reversal and stiff-launch displacement bias. Rapier retains collision detection; the requested bounce restitution uses Max combination against a zero-restitution floor. First/second contact phases and unresolved tiny rebounds terminate correctly. Timeouts omit completed-flight/impact metrics.
+- Production build and ESLint passed. All 45 unit tests passed, including nine physics audit cases. An independent RK4 launch oracle converged when its step was halved; the model's time, range and impact speed were within 1% for that reference case.
+- All 19 Playwright browser journeys passed in 56.6 s. Actual Rapier checks cover vacuum free fall on all six worlds (time within 0.025 s, speed within 3%); Mercury rebound coefficients 0, 0.01, 0.7 and 0.95 (height within 0.045 m and energy within 1.6 percentage points); a minimum-mass Venus drop (time/speed within 3.5%); a fast Venus launch against the independent RK4 reference with display-rounding allowances; Titan/Earth comparison; recovery; mobile controls; and the original simulator journeys.
+- The mobile cloud-outage test now intercepts its service requests, so it is deterministic with configured local credentials and does not create a live cloud session.
+- The third additive SQL migration and both rollback-only regression files passed in local PGlite with the Auth stub. Existing owner isolation and privileged quota permissions are preserved. No live database migration was applied in this feature update.
+- The final local browser bundle was scanned for configured OpenAI and Supabase secret values: no matches.
+- Approximation boundaries remain visible: fixed reference atmosphere and drag coefficients; no CFD, heat, buoyancy or material-survival model. Tiny rebounds below the solver's temporal resolution can measure zero retained height.

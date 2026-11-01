@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-export const worldIdSchema = z.enum(['earth', 'moon', 'mars']);
-export const activityIdSchema = z.enum(['rover-ramp', 'projectile', 'pendulum', 'wind-tunnel']);
+export const worldIdSchema = z.enum(['earth', 'moon', 'mars', 'mercury', 'venus', 'titan']);
+export const activityIdSchema = z.enum(['rover-ramp', 'projectile', 'pendulum', 'wind-tunnel', 'free-fall', 'bounce']);
 export type WorldId = z.infer<typeof worldIdSchema>;
 export type ActivityId = z.infer<typeof activityIdSchema>;
 export type Vec3 = readonly [number, number, number];
@@ -11,11 +11,15 @@ export const roverParamsSchema = z.object({ launchSpeedMps: number(1, 20), launc
 export const projectileParamsSchema = z.object({ objectId: z.enum(['sphere', 'brick']), massKg: number(0.1, 20), speedMps: number(0, 30), angleDeg: number(0, 80), releaseHeightM: number(0.5, 10), dragEnabled: z.boolean() }).strict();
 export const pendulumParamsSchema = z.object({ lengthM: number(0.5, 3), bobMassKg: number(0.1, 10), initialAngleDeg: number(5, 30) }).strict();
 export const windParamsSchema = z.object({ objectId: z.enum(['sphere', 'plate']), windSpeedMps: number(0, 30), areaM2: number(0.01, 1) }).strict();
+export const freeFallParamsSchema = z.object({ heightM: number(0.5, 10), massKg: number(0.1, 20), dragEnabled: z.boolean() }).strict();
+export const bounceParamsSchema = z.object({ heightM: number(0.5, 5), restitution: number(0, 0.95), massKg: number(0.1, 10) }).strict();
 export const experimentRecipeSchema = z.discriminatedUnion('activityId', [
   z.object({ ...base, activityId: z.literal('rover-ramp'), params: roverParamsSchema }).strict(),
   z.object({ ...base, activityId: z.literal('projectile'), params: projectileParamsSchema }).strict(),
   z.object({ ...base, activityId: z.literal('pendulum'), params: pendulumParamsSchema }).strict(),
   z.object({ ...base, activityId: z.literal('wind-tunnel'), params: windParamsSchema }).strict(),
+  z.object({ ...base, activityId: z.literal('free-fall'), params: freeFallParamsSchema }).strict(),
+  z.object({ ...base, activityId: z.literal('bounce'), params: bounceParamsSchema }).strict(),
 ]);
 export type ExperimentRecipe = z.infer<typeof experimentRecipeSchema>;
 export type ParamsByActivity = { [K in ActivityId]: Extract<ExperimentRecipe, {activityId: K}>['params'] };
@@ -26,7 +30,7 @@ export const labCommandSchema = z.discriminatedUnion('type', [
 export type LabCommand = z.infer<typeof labCommandSchema>;
 export const runStatusSchema = z.enum(['loading', 'ready', 'running', 'paused', 'completed', 'error']);
 export type RunStatus = z.infer<typeof runStatusSchema>;
-export const metricIdSchema = z.enum(['flightTimeS', 'rangeM', 'peakHeightM', 'impactSpeedMps', 'periodS', 'dragN', 'dynamicPressurePa']);
+export const metricIdSchema = z.enum(['flightTimeS', 'rangeM', 'peakHeightM', 'impactSpeedMps', 'periodS', 'dragN', 'dynamicPressurePa', 'reboundHeightM', 'energyRetentionPct']);
 export type MetricId = z.infer<typeof metricIdSchema>;
 export type TelemetrySample = { timeS: number; positionM: Vec3; velocityMps: Vec3; dragN: number | null; angleRad: number | null };
 export const runSummarySchema = z.object({ runId: z.uuid(), revision: z.number().int().nonnegative(), recipe: experimentRecipeSchema, modelVersion: z.string().min(1).max(80), elapsedS: number(0, 60), termination: z.enum(['contact', 'cycles', 'timeout', 'manual']), metrics: z.partialRecord(metricIdSchema, z.number().finite().nonnegative()), assumptions: z.array(z.string().max(500)).max(20) }).strict();
@@ -40,10 +44,14 @@ export const DEFAULT_PARAMS: ParamsByActivity = {
   projectile: {objectId: 'sphere', massKg: 1, speedMps: 10, angleDeg: 45, releaseHeightM: 1, dragEnabled: false},
   pendulum: {lengthM: 2, bobMassKg: 1, initialAngleDeg: 15},
   'wind-tunnel': {objectId: 'sphere', windSpeedMps: 12, areaM2: 0.1},
+  'free-fall': {heightM: 5, massKg: 1, dragEnabled: false},
+  bounce: {heightM: 3, restitution: 0.7, massKg: 1},
 };
 export const METRICS: Record<MetricId, {label: string; unit: string; precision: number}> = {
   flightTimeS: {label: 'Airtime', unit: 's', precision: 2}, rangeM: {label: 'Range', unit: 'm', precision: 2},
   peakHeightM: {label: 'Peak height', unit: 'm', precision: 2}, impactSpeedMps: {label: 'Impact speed', unit: 'm/s', precision: 2},
   periodS: {label: 'Period', unit: 's', precision: 2}, dragN: {label: 'Drag force', unit: 'N', precision: 3},
   dynamicPressurePa: {label: 'Dynamic pressure', unit: 'Pa', precision: 2},
+  reboundHeightM: {label: 'Rebound height', unit: 'm', precision: 2},
+  energyRetentionPct: {label: 'Energy retained', unit: '%', precision: 1},
 };

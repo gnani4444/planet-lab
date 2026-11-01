@@ -15,6 +15,18 @@ describe('bounded experiment contract', () => {
     expect(labCommandSchema.safeParse({type: 'execute', code: 'alert(1)'}).success).toBe(false);
     expect(assistantRequestSchema.safeParse({requestId: crypto.randomUUID(), revision: 0, operation: 'command', input: 'x'.repeat(501), recipe: DEFAULT_RECIPE}).success).toBe(false);
   });
+  it('round-trips new-world recipes and rejects invalid rebound controls', () => {
+    for(const worldId of ['mercury','venus','titan']) {
+      for(const activityId of ['free-fall','bounce'] as const) {
+        const recipe={...DEFAULT_RECIPE,worldId,activityId,params:DEFAULT_PARAMS[activityId]};
+        expect(experimentRecipeSchema.parse(JSON.parse(JSON.stringify(recipe)))).toEqual(recipe);
+      }
+    }
+    const recipe={...DEFAULT_RECIPE,worldId:'titan',activityId:'bounce',params:DEFAULT_PARAMS.bounce};
+    for(const restitution of [-0.1,1,Infinity]) expect(experimentRecipeSchema.safeParse({...recipe,params:{...recipe.params,restitution}}).success).toBe(false);
+    expect(experimentRecipeSchema.safeParse({...recipe,worldId:'jupiter'}).success).toBe(false);
+    expect(experimentRecipeSchema.safeParse({...recipe,params:{...recipe.params,execute:'code'}}).success).toBe(false);
+  });
 });
 describe('revision and comparison lifecycle', () => {
   it('clears stale telemetry when settings change and rejects late completion', () => {
@@ -48,7 +60,7 @@ describe('revision and comparison lifecycle', () => {
     const previous = state().recipe; expect(state().updateParam('launchSpeedMps', -100)).toBe(false); expect(state().recipe).toEqual(previous);
   });
   it('Earth cannot silently compare with itself', () => {
-    state().selectWorld('earth'); state().setComparison(true); expect(state().comparison).toBe(false); expect(state().error).toContain('Choose Moon or Mars');
+    state().selectWorld('earth'); state().setComparison(true); expect(state().comparison).toBe(false); expect(state().error).toContain('Choose another world');
   });
 });
 

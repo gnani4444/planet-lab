@@ -55,13 +55,15 @@ test('four activities work and a changed recipe survives refresh', async ({page}
   await expect(page.locator('#parameter-windSpeedMps')).toHaveValue('18');
 });
 test('mobile layout, guest save state, and reduced motion remain usable', async ({page}) => {
+  await page.route('**/api/assistant', route => route.fulfill({json:{available:false,reason:'Assistant temporarily unavailable.'}}));
+  await page.route('**/auth/v1/**', route => route.fulfill({status:503,json:{message:'Cloud unavailable for this outage test.'}}));
   await page.setViewportSize({width:390,height:844}); await page.emulateMedia({reducedMotion:'reduce'});
   await ready(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect(run(page)).toBeVisible();
   await page.getByRole('button', {name:'Saved experiments', exact:true}).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('dialog')).toContainText('unavailable');
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText(/unavailable|Could not start a guest cloud session/);
   await page.keyboard.press('Escape');
   await page.getByRole('button', {name:'Step', exact:true}).click();
   await expect(page.getByRole('button', {name:'Resume', exact:true})).toBeVisible();

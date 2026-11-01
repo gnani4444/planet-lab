@@ -1,8 +1,8 @@
 # Planet Lab
 
-Same experiment. Different world. A browser physics workbench for Earth, the Moon, and Mars.
+Same experiment. Different world. A browser physics workbench for Earth, the Moon, Mars, Mercury, Venus and Titan.
 
-Run a controlled rover launch, throw a projectile, measure a pendulum, or calculate reference drag in a wind tunnel. Compare Earth with identical inputs. Measurements come from the simulation; world constants and model assumptions stay visible.
+Run a controlled rover launch, throw a projectile, measure a pendulum, calculate reference drag, drop a mass or measure a rebound. Compare Earth with identical inputs. Measurements come from the simulation; world constants and model assumptions stay visible.
 
 Production: [Planet Lab on Vercel](https://planet-lab-drab.vercel.app). Cloud saves and the assistant still require the Supabase migrations and anonymous sign-in setup.
 
@@ -43,7 +43,7 @@ Without credentials, AI and cloud saves display unavailable states. Your local l
 
 ## Model limits
 
-Gravity is a constant local reference. Atmosphere is one reference state per world. Rover is a controlled rigid-body launch; suspension, tire grip, and drivetrain are not solved. Projectile uses fixed dimensions and optional reference drag. Pendulum has a fixed pivot and slight damping. Wind tunnel uses the drag equation and fixed coefficients; flow streaks are illustrative. This is an educational model, not an engineering certification tool.
+Gravity is a constant local reference. Atmosphere is one reference state per world. Rover is a controlled rigid-body launch; suspension, tire grip, and drivetrain are not solved. Projectile and free fall use fixed dimensions and optional reference drag. Bounce measures the first impact and rebound without atmospheric drag. Pendulum has a fixed pivot and slight damping. Wind tunnel uses the drag equation and fixed coefficients; flow streaks are illustrative. Heat, buoyancy and material survival are excluded, including on Venus and Titan. This is an educational model, not an engineering certification tool.
 
 Assets are authored procedural meshes; see [credits](public/assets/credits.json). No remote model download is required during a run.
 
@@ -52,6 +52,7 @@ Assets are authored procedural meshes; see [credits](public/assets/credits.json)
 - [Build plan](PLAN.md), [UI specification](DESIGN.md), [feature and physics scope](docs/planet-lab-product.md)
 - [Contracts](docs/planet-lab-contracts.md), [implementation handoff](docs/build-contract.md), [agent lanes](docs/planet-lab-agents.md)
 - [Verification evidence](docs/verification.md), [90-second demo script](docs/demo-script.md)
+- [Physics audit](docs/physics-audit.md), [world reference states](docs/world-reference-states.md)
 - [Hackathon brief](HACKATHON.md), [shared agent instructions](AGENTS.md), [taskboard](agent-coordination/taskboard.md)
 
 Hackathon project bootstrapped with `hackathon-init`. After cloning, enable the repository's taskboard and push hooks with `./scripts/agent-taskboard.sh setup`.
