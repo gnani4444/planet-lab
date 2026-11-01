@@ -18,3 +18,9 @@ Built and manually walked all 11 feature dialogs. First visit, replay, persisten
 Eleven-step tour completed and visually walked on desktop, tablet and mobile. Lint, production build, 47 unit tests and all 26 browser journeys pass. README includes actual tour screenshot.
 
 **Next action:** Publish GitHub changes and verify the production tour.
+
+## 2026-11-01T17:51:06Z · codex · completed
+
+Added and published an eleven-step feature tour with spotlight dialogs, first-visit onboarding, replay, keyboard controls and mobile panel restoration. Lint/build, 47 unit tests and all 26 browser journeys passed. Desktop/tablet/mobile walkthroughs and production dismissal/replay verified. GitHub and Vercel updated.
+
+**Next action:** No further action; task completed.
