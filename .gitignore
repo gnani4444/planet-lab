@@ -12,3 +12,7 @@ build/
 agent-coordination/active/
 agent-coordination/.write-lock/
 agent-coordination/.taskboard.*
+*.tsbuildinfo
+test-results/
+playwright-report/
+.taste-skill/

@@ -1,0 +1,19 @@
+{
+  "name": "planet-lab", "version": "0.1.0", "private": true,
+  "packageManager": "pnpm@10.34.9", "engines": {"node": ">=22"},
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0", "build": "next build", "start": "next start --hostname 0.0.0.0",
+    "typecheck": "tsc --noEmit", "lint": "eslint src tests", "test": "vitest run", "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "next": "16.4.3", "react": "19.3.1", "react-dom": "19.3.1", "three": "0.187.0",
+    "@react-three/fiber": "9.8.2", "@react-three/drei": "10.7.9", "@react-three/rapier": "2.2.0",
+    "zustand": "5.0.16", "zod": "4.6.7", "lucide-react": "1.66.0",
+    "@supabase/supabase-js": "2.118.0", "openai": "7.47.0", "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3", "@types/node": "^22", "@types/react": "^19", "@types/react-dom": "^19", "@types/three": "^0.183.1",
+    "tailwindcss": "4.3.3", "@tailwindcss/postcss": "4.3.3", "vitest": "5.0.5", "@playwright/test": "1.64.1",
+    "eslint": "^9.39.1", "eslint-config-next": "16.4.3"
+  }
+}
