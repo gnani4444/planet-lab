@@ -121,3 +121,9 @@ Expanded production deployment: [planet-lab-drab.vercel.app](https://planet-lab-
 The live browser confirmed six world choices and six activities. Mercury's 2 m vacuum drop measured 1.04 s; Titan's default first rebound measured 1.48 m; the Venus launch reference measured 3.03 s, 0.24 m range and 0.76 m/s impact speed. All passed the same documented reference bounds. `/lab` returned 200 and an unauthenticated assistant POST returned 401. Mobile layout fit the viewport, no page errors or failed script/style requests occurred, and fetched JavaScript contained no configured secret values. Desktop and mobile captures were visually inspected.
 
 A fresh read-only Supabase check still returned 404 for both app tables and reported anonymous sign-in disabled. All three migrations and Auth setup remain necessary for cloud saves and AI; this deployment does not claim those features are operational.
+
+## Public release and official submission — November 1, 16:58 London
+
+Public repository: https://github.com/gnani4444/planet-lab, source commit 03d3ffd. Final production deployment dpl_H4i8padBxJ1PAQm1svM86rpFh8Qw serves https://planet-lab-drab.vercel.app. Anonymous HTTP checks returned 200 for the repo and the demo video; the MP4 is 2,390,797 bytes with video/mp4 MIME type. A real production POST without any authentication returned a grounded OpenAI explanation and actual token counts. Configured server secrets were absent from tracked source and all 275 scanned history blobs.
+
+The official portal linked from the current Notion Builders Guide confirmed “Submitted, waiting for judging” at 16:58 London, before the 17:00 deadline. The entry includes the public repository, README screenshots, live Vercel URL, and 65.91-second narrated product video. Presenter contact details and the private status URL are excluded from this repository. The submission receipt remains local.
