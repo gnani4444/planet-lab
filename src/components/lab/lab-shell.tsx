@@ -3,19 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
-  Check, ChevronDown, CircleHelp, Clock3, CloudOff, Compass, ExternalLink,
+  Check, ChevronDown, CircleHelp, Clock3, Compass, ExternalLink,
   Database, GitCompareArrows, Globe2, LoaderCircle, Menu, Pause, Play, RotateCcw, Save, Settings2, SkipForward,
-  SlidersHorizontal, Sparkles, Trash2, X,
+  SlidersHorizontal, Trash2, X,
 } from 'lucide-react';
 import { ACTIVITIES, WORLDS } from '@/data';
-import { assistantResponseSchema, METRICS, type ActivityId, type AssistantRequest, type ExperimentRecipe, type MetricId, type ParameterDescriptor, type SavedExperiment, type TelemetrySample, type WorldId } from '@/domain';
+import { METRICS, type ActivityId, type ExperimentRecipe, type MetricId, type ParameterDescriptor, type SavedExperiment, type TelemetrySample, type WorldId } from '@/domain';
+import { AssistantPanel } from './assistant-panel';
 import { DRAFT_KEY, useLabStore } from '@/state/lab-store';
-import { cloudConfigured, getAccessToken } from '@/lib/supabase/browser';
+import { cloudConfigured } from '@/lib/supabase/browser';
 import { deleteExperiment, listExperiments, loadExperiment, saveExperiment } from '@/lib/persistence/experiments';
 
 type LabShellProps = { children: ReactNode; onResetCamera?: () => void };
 type MobileTab = 'setup' | 'results' | 'ask';
-type AssistantMessage = { kind: 'user' | 'assistant' | 'error'; text: string };
 const activityOrder: ActivityId[] = ['rover-ramp', 'projectile', 'pendulum', 'wind-tunnel', 'free-fall', 'bounce'];
 const worldOrder: WorldId[] = ['earth', 'moon', 'mars', 'mercury', 'venus', 'titan'];
 
@@ -163,46 +163,6 @@ function ResultsPanel() {
     </div>
     <MeasurementChart recipe={recipe} current={activeSamples} earth={earthSamples}/>
     {summary && <details className="result-assumptions"><summary>Run details and assumptions <ChevronDown size={13}/></summary><p>Model {summary.modelVersion} · {summary.termination} · {summary.elapsedS.toFixed(2)} simulated seconds</p><ul>{summary.assumptions.map((line, i) => <li key={`${i}-${line}`}>{line}</li>)}</ul></details>}
-  </section>;
-}
-
-function AssistantPanel() {
-  const recipe = useLabStore(s => s.recipe); const summaries = useLabStore(s => s.summaries); const dispatch = useLabStore(s => s.dispatch); const setError = useLabStore(s => s.setError);
-  const [availability, setAvailability] = useState<{available:boolean;reason?:string}|null>(null); const [messages, setMessages] = useState<AssistantMessage[]>([]); const [input, setInput] = useState(''); const [busy, setBusy] = useState(false); const [operation,setOperation] = useState<'command'|'explain'>('command');
-  const currentSummary = summaries[recipe.worldId];
-  const checkAvailability = useCallback(async () => {
-    setAvailability(null);
-    try { const response = await fetch('/api/assistant'); if(!response.ok) throw new Error(); const data = await response.json(); setAvailability(data); }
-    catch { setAvailability({available:false,reason:'AI assistant is unavailable. Local controls still work.'}); }
-  },[]);
-  useEffect(() => { void checkAvailability(); },[checkAvailability]);
-  const ask = async (event: React.FormEvent) => {
-    event.preventDefault(); const prompt = input.trim(); if(!prompt || busy) return;
-    const snapshot = useLabStore.getState(); const sentRevision = snapshot.revision; const requestRecipe = snapshot.recipe; const requestSummary = snapshot.summaries[requestRecipe.worldId]; const requestReference = snapshot.summaries.earth; const requestId = crypto.randomUUID(); const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 20_000); setMessages(m => [...m, {kind:'user', text:prompt}]); setInput(''); setBusy(true);
-    try {
-      if(!availability?.available) throw new Error(availability?.reason ?? 'AI assistant is unavailable.');
-      if(!cloudConfigured()) throw new Error('Cloud access is unavailable. AI requests need an active guest session.');
-      const token = await getAccessToken(); if(!token.ok) throw new Error(token.error);
-      const request: AssistantRequest = {requestId, revision: sentRevision, operation, input: prompt, recipe:requestRecipe, ...(requestSummary ? {summary:requestSummary} : {}), ...(requestReference ? {referenceSummary:requestReference} : {})};
-      const response = await fetch('/api/assistant', {method:'POST', headers:{'content-type':'application/json', authorization:`Bearer ${token.data}`}, body:JSON.stringify(request), signal:controller.signal});
-      const payload = await response.json(); if(!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : 'Assistant request failed. Try again.');
-      const parsed = assistantResponseSchema.safeParse(payload); if(!parsed.success || parsed.data.requestId !== requestId) throw new Error('Assistant returned an invalid response. Try again.');
-      if(useLabStore.getState().revision !== sentRevision || parsed.data.basedOnRevision !== sentRevision) throw new Error('Experiment changed while the assistant was responding. Ask again for the current setup.');
-      const result = parsed.data.result;
-      if(result.kind === 'command') { if(dispatch(result.command)) setMessages(m => [...m, {kind:'assistant',text:'Applied the validated experiment change.'}]); }
-      else {
-        const refs = result.kind === 'explanation' ? result.metricRefs.map(id => `${METRICS[id].label}: ${metricValue(requestSummary?.metrics[id],id)}`).join('\n') : '';
-        setMessages(m => [...m, {kind:result.kind === 'unsupported' ? 'error' : 'assistant', text:refs ? `${result.text}\n${refs}` : result.text}]);
-      }
-    } catch(error) { const message = error instanceof DOMException && error.name === 'AbortError' ? 'Assistant request timed out. Try again.' : error instanceof Error ? error.message : 'Assistant request failed. Try again.'; setMessages(m => [...m, {kind:'error',text:message}]); setError(message); }
-    finally { clearTimeout(timeout); setBusy(false); }
-  };
-  return <section className="assistant-panel" id="ask-panel" role="tabpanel" tabIndex={-1} aria-labelledby="tab-ask" aria-label="Ask about this experiment">
-    <div className="assistant-heading"><span className="assistant-mark"><Sparkles size={14}/></span><div><h2>Ask the lab assistant</h2></div><span className={`ai-availability ${availability?.available ? 'available' : ''}`}>{availability === null ? 'Checking' : availability.available ? 'Available' : 'Unavailable'}</span></div>
-    <div className="assistant-mode" role="group" aria-label="Assistant request type"><button type="button" aria-pressed={operation==='command'} onClick={()=>setOperation('command')}>Change setup</button><button type="button" aria-pressed={operation==='explain'} onClick={()=>setOperation('explain')} disabled={!currentSummary}>Explain result</button></div>
-    <div className="assistant-messages" aria-live="polite">{messages.length === 0 ? <p className="assistant-intro">{availability?.available ? 'Ask why the result changed or describe a supported setup.' : availability?.reason ?? 'Checking assistant availability…'}</p> : messages.slice(-4).map((message, i) => <p className={`assistant-message ${message.kind}`} key={`${i}-${message.text}`}>{message.kind === 'user' ? <b>You</b> : message.kind === 'error' ? <b>Unavailable</b> : <b>Lab assistant</b>}<span>{message.text}</span></p>)}</div>
-    <form className="assistant-form" onSubmit={ask}><label className="sr-only" htmlFor="assistant-input">Ask about this experiment</label><input id="assistant-input" value={input} onChange={e => setInput(e.target.value)} maxLength={500} placeholder={operation==='command'?'Describe a setup change…':'Ask why the result changed…'} disabled={!availability?.available || busy} /><button type="submit" aria-label="Send question" disabled={!availability?.available || busy || !input.trim()}>{busy ? <LoaderCircle className="spin" size={16}/> : <SkipForward size={15}/>}</button></form>
-    {!availability?.available && <p className="assistant-footnote"><CloudOff size={14}/>{availability?.reason ?? 'AI unavailable; lab controls work offline.'}<button onClick={()=>void checkAvailability()} type="button">Retry</button></p>}
   </section>;
 }
 

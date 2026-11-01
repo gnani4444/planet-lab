@@ -1,38 +1,34 @@
 # Planet Lab backend setup
 
-The local lab works without cloud credentials. Local credentials and Vercel production environment values are configured, and the Supabase keys have been verified. Cloud saves and the assistant still require the database migrations and anonymous sign-in setup. The linked Vercel project is `planet-lab`; production is [planet-lab-drab.vercel.app](https://planet-lab-drab.vercel.app).
+Ask uses a server-side OpenAI key directly. It requires no account, guest sign-in, bearer token or Supabase connection. Cloud saves are a separate optional feature. Production is [planet-lab-drab.vercel.app](https://planet-lab-drab.vercel.app).
 
-## Supabase
+## OpenAI
 
-1. Create or select a disposable development Supabase project. Enable anonymous sign-in in Authentication, and set the anonymous-user abuse controls/CAPTCHA before opening the app publicly.
-2. Apply all SQL files in `supabase/migrations/` in filename order: `202611010001_planet_lab_core.sql`, `202611010002_recipe_validation_permissions.sql`, then `202611010003_expanded_catalog.sql`. These create owner-scoped `experiments`, private `ai_usage`, RLS policies, and privileged quota reservation/finalization functions.
-3. Add the project's URL, publishable key, and secret key to the local environment using `.env.example` as the name list. The publishable key is browser-safe because table access is restricted by RLS. Keep `SUPABASE_SECRET_KEY` server-only.
-4. Restart the Next.js server after changing environment values. The app creates an anonymous session only when the user first saves or asks the assistant; it reuses the browser session after that.
+Set `OPENAI_API_KEY` in `.env.local` and in Vercel's server environment. Optionally set `OPENAI_MODEL`; the default is `gpt-6-luna`. Never use a `NEXT_PUBLIC_` variable for the OpenAI key. Restart the server after environment changes.
 
-Saved recipes are written from the browser as the signed-in owner. Database policies enforce owner identity for select, insert, update, and delete. Recipes are validated again when read. A lost browser session cannot recover its anonymous owner's saves.
+`GET /api/assistant` reports key configuration without revealing its value. `POST /api/assistant` accepts a strict JSON request with no authorization header. It validates the recipe, revision, optional measurements and up to six user/assistant history messages. History is intent context, never authoritative telemetry.
 
-## OpenAI assistant
+The server uses Responses Structured Outputs and counts input tokens before generation. Limits are 32 KiB per HTTP request, 500 characters per question, 8,000 input tokens, 800 output tokens and a 15-second provider deadline. Responses include actual input/output token counts. Provider storage is disabled with `store: false`.
 
-Set `OPENAI_API_KEY` on the server and optionally set `OPENAI_MODEL` (defaults to `gpt-6-luna`). Never use a `NEXT_PUBLIC_` variable for the OpenAI key. `GET /api/assistant` reports whether all required server services are configured; it never returns credential values.
+A measured summary must match the current recipe and revision. An Earth reference must match activity, inputs and seed, with Earth as its world. Explanation responses cannot execute commands. Numeric readouts are rendered from referenced measurement fields; prose with digits or absent metric references is rejected. Cross-world relationships are derived from supplied summaries and included in the model context. Scientific prose still needs evaluation.
 
-`POST /api/assistant` accepts a validated JSON request and a Supabase bearer token. Explain requests may be setup-only; when a measured summary is supplied, its recipe and revision must match the request. An Earth reference must have Earth as its world and match the current recipe's activity, parameters, and seed. Explain responses cannot contain commands. Numeric explanations can cite only metric IDs present in the supplied summary. Without a summary, the assistant must say that no measurement is available and return no metric references. The prompt forbids numeric cross-world claims without an Earth reference.
+Commands are proposals: the interface displays their target world, activity and parameters, and requires **Apply setup**. They enter the same validated store dispatch as manual controls. No generated code runs.
 
-The route reserves durable quota before calling OpenAI. The database limits each owner to 30 requests per hour and the project to 2,000 requests per UTC day. A request ID can reserve only once, so retries return conflict rather than call the model twice. Reservations remain conservative if the function crashes before finalization. The current implementation records actual input/output tokens when returned; `estimated_usd` stays empty until model pricing is deliberately configured. Input is capped at 8,000 tokens, output at 800 tokens, and the provider operation has a 15-second timeout.
+## Optional cloud saves
 
-The assistant uses Responses Structured Outputs with a schema generated from the shared Zod result schema. It returns a proposed command; the browser validates it against the current revision and dispatches supported commands through the same controls as the UI. It does not run simulation physics or execute model-generated code.
+1. Configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and server-only `SUPABASE_SECRET_KEY` using `.env.example`.
+2. Apply `202611010001_planet_lab_core.sql`, `202611010002_recipe_validation_permissions.sql`, then `202611010003_expanded_catalog.sql` from `supabase/migrations/`.
+3. Enable **Authentication → Sign In / Providers → Allow anonymous sign-ins**.
+4. Restart the app. Only a save/list cloud action starts or reuses the browser's guest session. There is no sign-in form.
 
-## External release checks
+`experiments` stores owner-scoped recipes. Row-level policies enforce owner identity for select, insert, update and delete. Recipe CHECK constraints validate bounds and exact parameter shapes. Losing the browser's anonymous session loses access to that owner's saves.
 
-Before claiming cloud or AI availability, configure a non-production Supabase project and OpenAI key, apply all migrations, verify anonymous sign-in, and test save/reload/delete under two separate users. Exercise quota concurrency and duplicate request IDs against Postgres. Verify a real Responses call, token recording, timeout behavior, and the deployed environment's secrets. A read-only Supabase connection check passed on 2026-11-01, but the expected tables and RPCs were absent from its API schema and anonymous sign-in was disabled. Public simulator deployment is verified; provider calls and live database behavior remain unverified.
+The migration also contains private `ai_usage` and privileged quota reservation/finalization functions from the earlier authenticated assistant design. Their permissions and concurrency are tested. **The current public Ask route does not require or invoke these functions.** The former owner/hour and project/day quotas do not govern current chat requests.
 
-Official references: [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [Responses input-token counts](https://developers.openai.com/api/reference/resources/responses/subresources/input_tokens/methods/count), [Supabase anonymous sign-ins](https://supabase.com/docs/guides/auth/auth-anonymous), [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys).
+## Verified November 1, 2026
 
-## Database permission regression
+The equivalent combined setup for all three migrations was applied transactionally to the configured live project. Both tables report row-level security enabled. Anonymous sign-in was enabled with user approval and verified through Supabase Auth. Live tests passed owner save/load, other-owner read isolation, forged-owner rejection, public read denial, private usage-ledger denial, concurrent quota deduplication and denial of guest access to privileged quota functions.
 
-The second migration grants authenticated writers and the backend role permission to execute the pure recipe validators used by CHECK constraints. It changes no ownership policy or privileged quota permission. Apply it even if the first migration was applied earlier.
+Ask is separately tested through the public server route with real OpenAI requests. Browser regression coverage deliberately keeps Supabase Auth unavailable while checking that chat still works. See [assistant evaluations](assistant-evaluation.md) for the exact prompts and recorded responses.
 
-`supabase/tests/recipe_permissions.sql` verifies a valid owner save, invalid recipe rejection, owner isolation and denial of direct quota reservation by authenticated users. Run it only in a disposable test database after all migrations; its transaction rolls back all fixtures. These checks were executed with PGlite 0.5.14 and a local Supabase Auth schema stub. Live Supabase Auth and concurrent server sessions remain separate checks.
-
-## Expanded catalog
-
-The third migration accepts Mercury, Venus and Titan plus free-fall and bounce recipes while preserving the original recipe format and owner policies. `supabase/tests/expanded_catalog.sql` verifies all new world/activity combinations and invalid bounds in a rollback-only fixture transaction. Local SQL checks passed; the live Supabase migrations remain pending.
+Official references: [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [conversation state](https://developers.openai.com/api/docs/guides/conversation-state), [Supabase anonymous identities](https://supabase.com/docs/guides/auth/auth-anonymous), [row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security).

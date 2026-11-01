@@ -23,3 +23,10 @@ Agents own the lane paths from docs/planet-lab-agents.md. Coordinator manages th
 - Audit actual Rapier calculations against independent SI equations; fix dense-atmosphere drag and timeout labels.
 - Extend strict client/server/SQL recipe contracts compatibly; preserve old recipes.
 - Prove numerical references, actual browser physics, responsive controls and production assets; redeploy Vercel and verify public access.
+
+## Assistant recovery and hackathon demo — November 1
+- Apply existing additive Supabase migrations and enable guest authentication; prove owner-only persistence and durable usage.
+- Make explanation the default, add bounded follow-up history and contextual prompts, and retain validated setup proposals.
+- Run real OpenAI question evaluations and end-to-end assistant checks; publish measured results.
+- Capture actual workbench, comparison and assistant screenshots; finish README and demo guide.
+- Run focused regression gates, deploy production, verify and commit own changes.

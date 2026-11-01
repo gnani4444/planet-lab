@@ -43,3 +43,12 @@ describe('lazy browser Supabase auth', () => {
     await expect(getAccessToken()).resolves.toMatchObject({ ok: false });
   });
 });
+
+it('reports the disabled guest provider with a concrete setup action', async () => {
+ vi.resetModules();
+ process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+ process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test';
+ createClient.mockReturnValue({ auth: { getSession: vi.fn().mockResolvedValue({data:{session:null},error:null}), signInAnonymously: vi.fn().mockResolvedValue({data:{session:null},error:{code:'anonymous_provider_disabled',status:422}}) } });
+ const {getAccessToken}=await import('@/lib/supabase/browser');
+ await expect(getAccessToken()).resolves.toEqual({ok:false,error:expect.stringContaining('Enable anonymous sign-ins')});
+});

@@ -2,6 +2,19 @@
 
 Verified November 1, 2026, on Node 22.16.0 with pnpm 10.34.9. This is evidence for the local application, not a cloud release certificate.
 
+## Latest assistant release — November 1, 16:56 London
+
+This section supersedes the older cloud and assistant status recorded below. Ask now uses the server OpenAI key directly, with no sign-in, guest identity or Supabase dependency. Supabase is optional for saved recipes.
+
+- Production build, ESLint and TypeScript passed; 47 unit tests and 22 production-browser journeys passed. The new browser check deliberately disables Supabase Auth and still completes chat, bounded follow-up history and readable expansion. Proposal application and clearing an in-flight response also pass.
+- The latest live evaluation catalog contains 24 passing case IDs: 22 real OpenAI chat requests and two live database checks. A focused rerun verified the selected zero-restitution bounce prompt after the inaccurate decimal candidate was rejected. Scientific review corrected a free-fall comparison; raw evidence is linked in the assistant evaluation report.
+- Supabase tables, validators, owner RLS and privileged quota functions were installed transactionally. Approved anonymous sign-in is enabled for cloud saves. Live owner isolation, public access denial, save/load and quota concurrency checks passed. These quota functions are retained in the schema but are not dependencies of public Ask.
+- A real browser Mars/Earth run measured 1.91 s versus 0.77 s airtime and 13.82 m versus 5.56 m range. A genuine no-sign-in OpenAI answer displayed matching snapshot metrics. Actual screenshots are committed under docs/screenshots/.
+- A narrated actual-product walkthrough is public/demo.mp4, 65.91 seconds, 2.4 MB. It combines real browser recording with held views of the working app, uses local system narration, and contains no slides or secret values.
+- Production deployment dpl_GqYLdLTCbHbEV669Xgj9vpQVc1WG serves the updated public Ask route. A final media deployment follows.
+
+## Earlier verification history
+
 ## Automated gates
 
 | Check | Result |

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { assistantRequestSchema, assistantResponseSchema, type AssistantResult } from '@/domain/assistant';
 import { AssistantProviderError, generateAssistantResult } from '@/lib/server/assistant-model';
-import { finalizeAssistantUsage, reserveAssistantQuota, verifyBearerToken } from '@/lib/server/assistant-service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,9 +9,6 @@ const MAX_BODY_BYTES = 32 * 1024;
 
 function availability() {
   if (!process.env.OPENAI_API_KEY) return { available: false, reason: 'Assistant is unavailable: OpenAI is not configured.' };
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || !process.env.SUPABASE_SECRET_KEY) {
-    return { available: false, reason: 'Assistant is unavailable: cloud authentication and quota storage are not configured.' };
-  }
   return { available: true as const };
 }
 
@@ -48,7 +44,7 @@ function validateSummaryBinding(request: ReturnType<typeof assistantRequestSchem
 }
 
 function explainOutputIsGrounded(request: ReturnType<typeof assistantRequestSchema.parse>, result: AssistantResult): boolean {
-  if (request.operation !== 'explain') return true;
+  if (request.operation !== 'explain' && result.kind !== 'explanation') return true;
   if (result.kind === 'command') return false;
   if ('text' in result && /\d/.test(result.text)) return false;
   if (result.kind !== 'explanation') return true;
@@ -89,10 +85,6 @@ export async function POST(request: Request) {
   const available = availability();
   if (!available.available) return json({ error: available.reason }, 503);
 
-  const authorization = request.headers.get('authorization');
-  const bearer = authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1];
-  if (!bearer) return json({ error: 'A valid cloud session is required.' }, 401);
-
   const declaredLength = Number(request.headers.get('content-length') || 0);
   if (declaredLength > MAX_BODY_BYTES) return json({ error: 'Request is too large.' }, 400);
   if (request.headers.get('content-type')?.toLowerCase().split(';')[0] !== 'application/json') {
@@ -110,38 +102,19 @@ export async function POST(request: Request) {
     return json({ error: 'Request is invalid or the measured summary does not match this experiment.' }, 400);
   }
 
-  let ownerId: string | null;
-  try { ownerId = await verifyBearerToken(bearer); }
-  catch { return json({ error: 'Cloud authentication is unavailable.' }, 503); }
-  if (!ownerId) return json({ error: 'Cloud session is invalid.' }, 401);
-
-  let reservation;
-  try { reservation = await reserveAssistantQuota(ownerId, parsedRequest.data); }
-  catch { return json({ error: 'Assistant quota is unavailable.' }, 503); }
-  if (!reservation) return json({ error: 'Assistant quota is unavailable.' }, 503);
-  if (reservation.status === 'duplicate') return json({ error: 'This request is already in progress or was already handled.' }, 409);
-  if (reservation.status === 'quota_exceeded') return json({ error: 'Assistant usage limit reached. Try again later.' }, 429);
-
   try {
     const generated = await generateAssistantResult(parsedRequest.data);
     if (!explainOutputIsGrounded(parsedRequest.data, generated.result)) throw new AssistantProviderError('invalid_output');
-    const finalized = await finalizeAssistantUsage(ownerId, parsedRequest.data.requestId, {
-      status: 'completed', inputTokens: generated.inputTokens, outputTokens: generated.outputTokens,
-    });
-    if (!finalized) return json({ error: 'Assistant usage could not be recorded.' }, 503);
     const response = assistantResponseSchema.parse({
       requestId: parsedRequest.data.requestId,
       basedOnRevision: parsedRequest.data.revision,
       result: generated.result,
+      usage: { inputTokens: generated.inputTokens, outputTokens: generated.outputTokens },
     });
     return json(response);
   } catch (error) {
     const typed = error instanceof AssistantProviderError ? error : null;
     const status = typed?.code === 'timeout' ? 504 : typed?.code === 'input_too_large' ? 400 : 503;
-    const finalized = await finalizeAssistantUsage(ownerId, parsedRequest.data.requestId, {
-      status: typed?.code === 'input_too_large' ? 'rejected' : 'failed', inputTokens: null, outputTokens: null,
-    }).catch(() => false);
-    if (!finalized) return json({ error: 'Assistant usage could not be recorded.' }, 503);
     const message = typed?.code === 'timeout'
       ? 'Assistant request timed out.'
       : typed?.code === 'input_too_large'

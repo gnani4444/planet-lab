@@ -33,6 +33,12 @@ async function startOrReuseGuestSession(): Promise<Result<string>> {
     if (current.session?.access_token) return { ok: true, data: current.session.access_token };
 
     const { data, error } = await client.auth.signInAnonymously();
+    if (error?.code === 'anonymous_provider_disabled') {
+      return { ok: false, error: 'Guest sign-in is disabled in Supabase. Enable anonymous sign-ins in Authentication settings.' };
+    }
+    if (error?.status === 429) {
+      return { ok: false, error: 'Too many guest sign-in attempts. Wait a moment, then retry.' };
+    }
     if (error || !data.session?.access_token) {
       return { ok: false, error: 'Could not start a guest cloud session.' };
     }

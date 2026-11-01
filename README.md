@@ -1,21 +1,69 @@
 # Planet Lab
 
-Same experiment. Different world. A browser physics workbench for Earth, the Moon, Mars, Mercury, Venus and Titan.
+### Same experiment. Different world.
 
-Run a controlled rover launch, throw a projectile, measure a pendulum, calculate reference drag, drop a mass or measure a rebound. Compare Earth with identical inputs. Measurements come from the simulation; world constants and model assumptions stay visible.
+A physics workbench with an OpenAI science coach. Launch a rover on Mars, repeat the same experiment on Earth, and ask why the measured results changed. Explore the science through experiments you can see, adjust and repeat.
 
-Production: [Planet Lab on Vercel](https://planet-lab-drab.vercel.app). Cloud saves and the assistant still require the Supabase migrations and anonymous sign-in setup.
+[**Open the live lab**](https://planet-lab-drab.vercel.app) · [Watch the 66-second demo](https://planet-lab-drab.vercel.app/demo.mp4) · [Demo script](docs/demo-script.md) · [Physics audit](docs/physics-audit.md) · [Assistant evaluations](docs/assistant-evaluation.md)
+
+**No sign-in required.** Ask uses the server's OpenAI key directly. The simulator also works without credentials; Supabase is optional for saving recipes.
+
+![Mars rover experiment with measured flight and OpenAI questions](docs/screenshots/workbench.jpg)
+
+## Ask, experiment, understand
+
+OpenAI is part of the experiment loop:
+
+1. **Before a run:** explain what the current setup should demonstrate.
+2. **After a run:** connect the result to gravity, atmosphere and the model's assumptions.
+3. **Compare worlds:** explain matching measurements while holding the recipe constant.
+4. **Try an idea:** propose a supported setup change, review its exact parameters, then click **Apply setup**.
+5. **Keep asking:** follow up in the expanded conversation. Changing the recipe starts fresh context.
+
+![A real OpenAI explanation of measured Mars and Earth results](docs/screenshots/assistant.jpg)
+
+Suggested questions change with the activity and available measurements. The UI includes tested prompts such as **Explain this result**, **Why is it different from Earth?**, **Try air resistance**, **Try a longer string** and **Try no rebound**.
+
+## Six worlds. Six experiments.
+
+Explore Earth, Moon, Mars, Mercury, Venus and Titan. Titan is Saturn's moon; Earth's Moon is included too.
+
+| Experiment | Change | Inspect |
+| --- | --- | --- |
+| Rover ramp | Launch speed, ramp angle, world | Airtime, range, peak height, impact speed |
+| Projectile | Shape, mass, angle, speed, height, drag | Flight path and landing measurements |
+| Pendulum | Length, bob mass, release angle | Measured swing period |
+| Wind tunnel | Shape, airflow speed, area, atmosphere | Calculated reference drag and dynamic pressure |
+| Free fall | Height, mass, drag, world | Fall time and impact speed |
+| Bounce | Height, mass, restitution, world | First rebound height and retained energy |
+
+![Matching Mars and Earth runs with shared axes and measured differences](docs/screenshots/comparison.jpg)
+
+Earth comparison uses identical activity, seed and parameters. Each world runs its own physics state. Changing an input clears stale results; a timeout never invents an impact measurement. Recipes recover locally after refresh and can optionally be saved to Supabase.
+
+## OpenAI integration
+
+The server calls the **Responses API**, using **GPT-6 Luna** by default and **Structured Outputs** generated from shared Zod schemas. The assistant receives the current recipe, world constants, activity assumptions, available run summaries and up to six prior conversation messages. Responses are not canned.
+
+The model returns either an explanation, a validated command proposal, a clarification or an unsupported request. It does not execute generated code. The browser runs the physics and applies reviewed commands through the same controls as manual changes.
+
+Explanations reference available metric IDs. Numeric readouts come from the request's measurement snapshot, including a matched Earth run when present. The server rejects stale recipe bindings, unavailable metric references and numeric explanation prose. These checks constrain the answer; they do not prove every scientific sentence correct. Live evaluations caught an incorrect fall-time comparison and an inaccurate decimal command, which informed the final prompts and selected UI questions. See the [evaluation report](docs/assistant-evaluation.md) and [recorded responses](docs/evals/assistant-results.json).
 
 ## Run locally
 
-Node 22.x; pnpm 10.34.9. No cloud keys are needed for the local lab.
+Use **Node.js 22** and **pnpm 10.34.9**.
 
 ```sh
 pnpm install --frozen-lockfile
+cp .env.example .env.local
 pnpm dev
 ```
 
-Open http://localhost:3000. If the global pnpm shim fails, use `npx --yes pnpm@10.34.9` in place of `pnpm`.
+Open [localhost:3000](http://localhost:3000). For Ask, add `OPENAI_API_KEY` to `.env.local`; `OPENAI_MODEL` is optional. No Supabase values, account or guest session are required for chat. Keep the OpenAI key server-side.
+
+For cloud saves, configure the three Supabase variables, apply all files in `supabase/migrations/` in filename order, and enable anonymous sign-ins. Saving creates a guest identity silently; there is no login form. Owner-only database policies keep saved recipes separate. See [backend setup](docs/backend-setup.md). Never commit `.env.local`.
+
+## Verify it
 
 ```sh
 pnpm lint
@@ -25,34 +73,29 @@ pnpm build
 pnpm test:e2e
 ```
 
-Install the browser once with `pnpm exec playwright install chromium`. End-to-end tests use the production server. Stop an existing development server first.
+The browser suite exercises actual Rapier physics, comparisons, mobile controls, follow-up chat, reviewed setup commands and stale-response cancellation. Reference tests compare flight, pendulum, drag and rebound behavior with independent equations.
 
-## Stack and ownership
+```sh
+pnpm test:ai
+```
 
-Next.js App Router, React, TypeScript, Tailwind, Three.js/React Three Fiber, Rapier, Zustand, Zod. Server adapters use Supabase and OpenAI Responses. Dependencies are locked in `pnpm-lock.yaml`.
+This opt-in suite makes real, billed OpenAI calls and writes an evaluation report. The complete suite also checks Supabase save isolation and database quota primitives, so it requires the optional Supabase configuration. It is separate from normal tests.
 
-Browser owns rendering and fixed-step physics. Domain schemas validate all recipes and assistant commands. Parameter changes invalidate old results. Only recipes persist locally; frame state and credentials do not.
+## Model boundaries
 
-Three GPT-6 Luna agents built simulation, UI, and backend lanes. Codex scaffolded shared contracts, integrated the lanes, reviewed lifecycle/security boundaries, and verified the local application.
+Planet Lab is built for learning and controlled comparisons. It uses fixed near-surface gravity and atmosphere, simplified collision shapes, and constant drag coefficients. It has no CFD, buoyancy, heat transfer or material-survival model. Rover suspension, tire grip and drivetrain are omitted. Wind streaks illustrate flow; wind-tunnel results are calculated reference values.
 
-## Cloud and AI setup
+The [physics audit](docs/physics-audit.md) records equations, tolerances and solver limits. The [world reference catalog](docs/world-reference-states.md) links the scientific sources.
 
-Copy `.env.example` to `.env.local` and set credentials. See [backend setup](docs/backend-setup.md) and [hosting plan](docs/planet-lab-hosting.md) for migrations, anonymous authentication, quotas, RLS, and deployment. Public environment variables require rebuilding after changes.
+## Built at the OpenAI hackathon
 
-Without credentials, AI and cloud saves display unavailable states. Your local lab remains usable. Cloud migrations, two-user RLS isolation and live OpenAI calls require separate verification; mocked tests do not establish those gates. Vercel production uses the explicit Next.js preset in `vercel.json`; `.vercelignore` excludes local credential files from deployment uploads.
+Codex coordinated smaller GPT-6 Luna agents across backend, physics, interface and documentation work, then integrated and verified the results. Shared contracts let agents work in separate lanes. The scientific audit and browser tests checked the resulting implementation rather than treating generated code as proof.
 
-## Model limits
+**Stack:** Next.js · React · TypeScript · Three.js / React Three Fiber · Rapier · Zustand · Zod · OpenAI Responses API · Supabase · Vercel.
 
-Gravity is a constant local reference. Atmosphere is one reference state per world. Rover is a controlled rigid-body launch; suspension, tire grip, and drivetrain are not solved. Projectile and free fall use fixed dimensions and optional reference drag. Bounce measures the first impact and rebound without atmospheric drag. Pendulum has a fixed pivot and slight damping. Wind tunnel uses the drag equation and fixed coefficients; flow streaks are illustrative. Heat, buoyancy and material survival are excluded, including on Venus and Titan. This is an educational model, not an engineering certification tool.
+Procedural assets are authored in this repository and listed in [asset credits](public/assets/credits.json).
 
-Assets are authored procedural meshes; see [credits](public/assets/credits.json). No remote model download is required during a run.
-
-## Project documents
-
-- [Build plan](PLAN.md), [UI specification](DESIGN.md), [feature and physics scope](docs/planet-lab-product.md)
-- [Contracts](docs/planet-lab-contracts.md), [implementation handoff](docs/build-contract.md), [agent lanes](docs/planet-lab-agents.md)
-- [Verification evidence](docs/verification.md), [90-second demo script](docs/demo-script.md)
-- [Physics audit](docs/physics-audit.md), [world reference states](docs/world-reference-states.md)
-- [Hackathon brief](HACKATHON.md), [shared agent instructions](AGENTS.md), [taskboard](agent-coordination/taskboard.md)
-
-Hackathon project bootstrapped with `hackathon-init`. After cloning, enable the repository's taskboard and push hooks with `./scripts/agent-taskboard.sh setup`.
+- [Demo script](docs/demo-script.md) — the judge-facing story in 90 seconds.
+- [Verification record](docs/verification.md) — checks, evidence and known limits.
+- [Build plan](PLAN.md), [design](DESIGN.md), [contracts](docs/planet-lab-contracts.md) — implementation context.
+- [Hackathon brief](HACKATHON.md) — event and judging criteria.

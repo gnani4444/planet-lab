@@ -213,3 +213,7 @@ tests/e2e/                     integration journeys
 No implementation files exist yet. File map specifies future ownership, not current repository contents.
 
 Reference: [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [Next.js client-only loading](https://nextjs.org/docs/app/guides/lazy-loading).
+
+## November 1 amendment — public Ask
+
+The implemented assistant now requires only the server OpenAI key, per the user's no-sign-in requirement. It accepts no required bearer identity and has no Supabase quota dependency. Earlier authenticated-assistant requirements above are superseded for Ask; owner authentication and RLS still apply to optional cloud saves. Requests optionally carry up to six user/assistant history messages of at most 1,000 characters each. Command results include rationale text and require an explicit Apply action. Responses optionally include actual input/output token counts. HTTP errors are 400 for invalid requests/input budgets, 503 for unavailable/invalid provider output, and 504 for timeouts.

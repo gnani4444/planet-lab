@@ -1,0 +1,11 @@
+Planet Lab asks a simple question: what changes when the same experiment happens on another world? It is a physics workbench for students and curious learners.
+
+Here is a rover launch on Mars. We control the launch speed and angle, run the experiment, and inspect its measured trajectory, airtime, range and impact speed.
+
+Now we keep the recipe fixed and compare with Earth. Each world runs its own physics. The difference comes from the environment, rather than changed inputs.
+
+OpenAI closes the learning loop. We click Explain this result. This is a real response using the completed run and matched Earth reference. The numbers shown beside the answer come from the measurements. We can ask follow-up questions or review a proposed setup before applying it. No sign-in is required.
+
+We built six activities and six world presets during the hackathon. Codex coordinated smaller OpenAI agents across physics, backend and interface work, then integrated and tested their changes against independent equations and real browser journeys.
+
+Planet Lab: same experiment, different world. Try it at planet lab drab dot vercel dot app.

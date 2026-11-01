@@ -150,3 +150,21 @@ Six worlds and six activities ready. Physics fixes pass 45 unit and 19 browser t
 Six worlds and six activities deployed. 45 unit tests, 19 browser tests and live production physics checks pass. Supabase setup pending.
 
 **Next action:** Apply all Supabase migrations and enable anonymous sign-in.
+
+## 2026-11-01T16:38:09Z · codex · in-progress
+
+Takeover from unassigned. Agent continuation requested. Previous checkpoint by codex: Six worlds and six activities deployed. 45 unit tests, 19 browser tests and live production physics checks pass. Supabase setup pending.
+
+**Next action:** Apply all Supabase migrations and enable anonymous sign-in.
+
+## 2026-11-01T16:48:39Z · codex · in-progress
+
+Created live Supabase tables, owner RLS and privileged quota functions; enabled approved guest sign-in. Sixteen real OpenAI requests passed route checks; manually found and corrected one fall-time direction error. Integrated explanation-first chat, history and setup proposal review.
+
+**Next action:** Verify corrected answers and capture real assistant screenshots.
+
+## 2026-11-01T16:56:55Z · codex · in-progress
+
+No-sign-in OpenAI deployed; 47 unit and 22 browser tests passed; 24 final live case IDs passed. Real screenshots and 66-second narrated demo ready; public GitHub repo created. Submission form prepared; presenter contact details pending.
+
+**Next action:** Push source and deploy demo video before submitting the official form.
