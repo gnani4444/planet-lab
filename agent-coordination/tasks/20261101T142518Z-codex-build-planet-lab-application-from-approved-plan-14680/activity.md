@@ -42,3 +42,33 @@ Takeover from unassigned. Agent continuation requested. Previous checkpoint by c
 Verified local build complete: frozen install, lint, typecheck, 35 unit tests, production build, five browser journeys, keyboard/offline checks and responsive inspection. Three GPT-6 Luna agents contributed. Cloud services, Git remote and deployment await configuration.
 
 **Next action:** Configure external services and Git remote, then verify cloud and public deployment gates.
+
+## 2026-11-01T15:32:53Z · codex · in-progress
+
+Takeover from unassigned. Agent continuation requested. Previous checkpoint by codex: Verified local build complete: frozen install, lint, typecheck, 35 unit tests, production build, five browser journeys, keyboard/offline checks and responsive inspection. Three GPT
+
+**Next action:** Configure external services and Git remote, then verify cloud and public deployment gates.
+
+## 2026-11-01T15:35:30Z · codex · in-progress
+
+Reproduced authenticated recipe save permission failure in PostgreSQL; added validator grants migration and SQL regression for saves, validation, owner isolation and privileged quota access. PGlite regression and 17 server tests pass.
+
+**Next action:** Hand off live Supabase migration and cloud verification.
+
+## 2026-11-01T15:35:31Z · codex · ready-for-handoff
+
+Local app and database checks pass; additive validator permissions migration fixes authenticated saves. Both migrations and owner isolation verified with local PostgreSQL and Auth stub; 17 server tests pass. Live cloud checks remain.
+
+**Next action:** Configure external services and Git remote, then verify cloud and public deployment gates.
+
+## 2026-11-01T15:35:44Z · codex · in-progress
+
+Takeover from unassigned. Agent continuation requested. Previous checkpoint by codex: Local app and database checks pass; additive validator permissions migration fixes authenticated saves. Both migrations and owner isolation verified with local PostgreSQL and Auth 
+
+**Next action:** Configure external services and Git remote, then verify cloud and public deployment gates.
+
+## 2026-11-01T15:35:56Z · codex · ready-for-handoff
+
+Fixed recipe validator permissions. Local SQL save, validation and owner-isolation checks pass; 17 server tests pass. Live cloud checks remain.
+
+**Next action:** Configure external services and Git remote, then verify cloud and public deployment gates.

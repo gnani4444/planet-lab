@@ -60,3 +60,9 @@ No Git remote is configured, so commits remain local. Supabase and OpenAI enviro
 F01–F08 and local F10 are implemented and locally exercised. F09 and cloud F10 have code and mocked boundary coverage; they require live service configuration. F11 is pending. P1 features remain deferred.
 
 An approximately 29-second silent local browser capture exists beside the chat artifacts as `planet-lab-demo.webm`. It shows working rover comparison, Moon wind drag, and pendulum measurements. It is not a narrated submission video, public deployment, or hackathon submission.
+
+## Database follow-up
+
+Reproduced a real `permission denied for function planet_lab_recipe_is_valid` error during an authenticated insert. Added a second, additive migration granting execution of the two pure validators to authenticated writers and the backend role. Ownership RLS and quota RPC permissions are unchanged.
+
+Both migrations and `supabase/tests/recipe_permissions.sql` were executed in a temporary PGlite 0.5.14 PostgreSQL runtime with Supabase Auth stubbed. Valid owner saves, constraint rejection, owner isolation and privileged quota denial passed. The 17 server tests also passed. This improves the earlier static-only SQL check; it does not establish live Supabase Auth or multi-session concurrency verification.
