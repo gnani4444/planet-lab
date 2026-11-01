@@ -23,7 +23,7 @@ The assistant uses Responses Structured Outputs with a schema generated from the
 
 ## External release checks
 
-Before claiming cloud or AI availability, configure a non-production Supabase project and OpenAI key, apply both migrations, verify anonymous sign-in, and test save/reload/delete under two separate users. Exercise quota concurrency and duplicate request IDs against Postgres. Verify a real Responses call, token recording, timeout behavior, and the deployed environment's secrets. No cloud, provider, or deployment check has been run from this workspace.
+Before claiming cloud or AI availability, configure a non-production Supabase project and OpenAI key, apply both migrations, verify anonymous sign-in, and test save/reload/delete under two separate users. Exercise quota concurrency and duplicate request IDs against Postgres. Verify a real Responses call, token recording, timeout behavior, and the deployed environment's secrets. A read-only Supabase connection check passed on 2026-11-01, but the expected tables and RPCs were absent from its API schema and anonymous sign-in was disabled. Provider calls, live database behavior and deployment remain unverified.
 
 Official references: [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs), [Responses input-token counts](https://developers.openai.com/api/reference/resources/responses/subresources/input_tokens/methods/count), [Supabase anonymous sign-ins](https://supabase.com/docs/guides/auth/auth-anonymous), [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys).
 

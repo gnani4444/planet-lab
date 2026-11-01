@@ -66,3 +66,15 @@ An approximately 29-second silent local browser capture exists beside the chat a
 Reproduced a real `permission denied for function planet_lab_recipe_is_valid` error during an authenticated insert. Added a second, additive migration granting execution of the two pure validators to authenticated writers and the backend role. Ownership RLS and quota RPC permissions are unchanged.
 
 Both migrations and `supabase/tests/recipe_permissions.sql` were executed in a temporary PGlite 0.5.14 PostgreSQL runtime with Supabase Auth stubbed. Valid owner saves, constraint rejection, owner isolation and privileged quota denial passed. The 17 server tests also passed. This improves the earlier static-only SQL check; it does not establish live Supabase Auth or multi-session concurrency verification.
+
+## Live Supabase connection check — 2026-11-01
+
+Read `.env.local` without printing credential values and performed read-only HTTPS checks against the configured Supabase project.
+
+- Publishable key: Auth settings endpoint returned HTTP 200.
+- Secret key: backend Auth admin endpoint and REST schema endpoint returned HTTP 200. The backend key is a secret key; the browser key is a distinct publishable key.
+- Schema unavailable: both `experiments` and `ai_usage` returned HTTP 404 / `PGRST205` for backend and unauthenticated browser requests. Neither table nor the four expected validator/quota functions appeared in the backend API schema. This establishes API absence, not a direct PostgreSQL catalog inspection.
+- Anonymous sign-in: Auth settings reported `external.anonymous_users = false`.
+- Owner isolation and quota behavior could not be verified live because the expected schema was unavailable. OpenAI was not called, and no live records were changed.
+
+Next: apply both SQL migrations in filename order, enable anonymous sign-in, then run the live save and isolation checks.

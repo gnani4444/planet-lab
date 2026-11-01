@@ -84,3 +84,15 @@ Takeover from unassigned. Agent continuation requested. Previous checkpoint by c
 Created git-ignored .env.local from template with owner-only permissions. Required credential values await configuration.
 
 **Next action:** Fill the four required credentials in .env.local.
+
+## 2026-11-01T15:43:48Z · codex · in-progress
+
+Takeover from unassigned. Agent continuation requested. Previous checkpoint by codex: Created git-ignored .env.local from template with owner-only permissions. Required credential values await configuration.
+
+**Next action:** Fill the four required credentials in .env.local.
+
+## 2026-11-01T15:45:09Z · codex · ready-for-handoff
+
+Supabase keys verified. Expected tables and RPCs absent from API; anonymous sign-in disabled. Read-only findings documented.
+
+**Next action:** Complete Supabase schema and anonymous-auth setup.

@@ -6,10 +6,10 @@ created_by: codex
 status: ready-for-handoff
 scope: src public tests supabase package.json pnpm-lock.yaml configs README.md docs PLAN.md
 created_at: 2026-11-01T14:25:18Z
-updated_at: 2026-11-01T15:40:38Z
+updated_at: 2026-11-01T15:45:09Z
 current_executor: unassigned
 last_agent: codex
-last_summary: Created git-ignored .env.local from template with owner-only permissions. Required credential values await configuration.
-next_action: Fill the four required credentials in .env.local.
+last_summary: Supabase keys verified. Expected tables and RPCs absent from API; anonymous sign-in disabled. Read-only findings documented.
+next_action: Complete Supabase schema and anonymous-auth setup.
 plan: plan.md
 activity: activity.md
